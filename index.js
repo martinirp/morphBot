@@ -11,7 +11,7 @@ const { token } = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Path to cookies file (Assuming 'data' folder is at the root of the bot project)
-const cookiesFilePath = './data/cookies.txt';
+const cookiesFilePath = process.env.COOKIE_FILE_PATH || './data/cookies.txt'; // Get cookies path from env
 
 // Create a new client instance
 const client = new Client({
@@ -123,10 +123,9 @@ client.on('messageCreate', async (message) => {
 
     if (!cmd) return;
 
+    // Verificação de permissão no canal de voz
     if (cmd.inVoiceChannel && !message.member.voice.channel) {
-        return message.channel.send(
-            'Você deve estar em um canal de voz!'
-        );
+        return message.channel.send('Você deve estar em um canal de voz!');
     }
 
     try {
