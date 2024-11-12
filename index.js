@@ -10,6 +10,9 @@ require('dotenv').config();
 const { token } = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
+// Path to cookies file (Assuming 'data' folder is at the root of the bot project)
+const cookiesFilePath = './data/cookies.txt';
+
 // Create a new client instance
 const client = new Client({
     intents: [
@@ -44,7 +47,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin({ cookies: cookiesFilePath }),
         ],
     });
 } else {
@@ -55,7 +58,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin({ cookies: cookiesFilePath }),
         ],
         ffmpeg: {
             path: ffmpeg,
