@@ -16,6 +16,7 @@ console.log(`Using cookies from: ${COOKIE_FILE_PATH}`);
 // Selenium setup
 const { Builder, By, Key, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
+const chromedriver = require('chromedriver');
 
 // Configure cookies and headers for YouTube download
 const ytDlpOptions = {
@@ -108,7 +109,12 @@ async function loginWithSelenium() {
         .addArguments('--remote-debugging-port=9222'); // Enable remote debugging if needed
 
     // Initialize WebDriver with the Chrome options
-    const driver = await new Builder().forBrowser('chrome').setChromeOptions(chromeOptions).build();
+    const service = new chrome.ServiceBuilder(chromedriver.path).build();
+    const driver = await new Builder()
+        .forBrowser('chrome')
+        .setChromeOptions(chromeOptions)
+        .setChromeService(service)
+        .build();
 
     try {
         await driver.get('https://accounts.google.com/');
