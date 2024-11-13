@@ -1,11 +1,11 @@
-import { Client, Events, GatewayIntentBits, Collection } from 'discord.js';
-import ffmpeg from 'ffmpeg-static'; // Importando ffmpeg corretamente
-import dotenv from 'dotenv'; // Usando dotenv
-import { YtDlpPlugin } from '@distube/yt-dlp';
-import { DisTube } from 'distube';
-import registerCommands from './registers/commands-register.js'; // Usando extensão .js
-import registerSlashCommands from './registers/slash-commands-register.js'; // Usando extensão .js
-import mentionCommand from './commands/mention.js'; // Usando extensão .js
+const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const ffmpeg = require('ffmpeg-static'); // Usando o require
+const dotenv = require('dotenv'); // Usando dotenv com require
+const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { DisTube } = require('distube');
+const registerCommands = require('./registers/commands-register'); // Removendo a extensão .js
+const registerSlashCommands = require('./registers/slash-commands-register'); // Removendo a extensão .js
+const mentionCommand = require('./commands/mention'); // Removendo a extensão .js
 
 // Carregar variáveis de ambiente
 dotenv.config();
