@@ -1,33 +1,33 @@
-// Requerendo as classes necessárias do discord.js
+// Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 
-// Obter o caminho do FFmpeg
+// Get FFmpeg path from node_modules
 const ffmpeg = require('ffmpeg-static');
 
-// Carregar as variáveis do .env
+// Load dotenv variables
 require('dotenv').config();
 
 const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY, GOOGLE_EMAIL, GOOGLE_PASSWORD } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
-// Logando o caminho do arquivo de cookies para verificação
-console.log(`Utilizando cookies de: ${COOKIE_FILE_PATH}`);
+// Log the cookie file path for verification
+console.log(`Using cookies from: ${COOKIE_FILE_PATH}`);
 
-// Configuração do Selenium
+// Selenium setup
 const { Builder, By, Key, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
-// Configurar cookies e headers para download do YouTube
+// Configure cookies and headers for YouTube download
 const ytDlpOptions = {
-    cookieFile: COOKIE_FILE_PATH,
+    cookieFile: COOKIE_FILE_PATH, 
     userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-    proxy: YTDL_PROXY || '',
+    proxy: YTDL_PROXY || '', 
     headers: {
         referer: 'https://www.youtube.com/',
     },
 };
 
-// Criando uma nova instância do cliente Discord
+// Create a new client instance
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -41,11 +41,11 @@ client.commands = new Collection();
 client.aliases = new Collection();
 client.slashCommands = new Collection();
 
-// Registrar comandos de prefixo
+// Register prefix commands
 const registerCommands = require('./registers/commands-register');
 registerCommands(client);
 
-// Registrar comandos de barra
+// Register slash commands
 const registerSlashCommands = require('./registers/slash-commands-register');
 registerSlashCommands(client);
 
@@ -53,22 +53,35 @@ registerSlashCommands(client);
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
-// Inicializar DisTube
-const distubeOptions = {
-    emitNewSongOnly: true,
-    emitAddSongWhenCreatingQueue: false,
-    emitAddListWhenCreatingQueue: false,
-    savePreviousSongs: true,
-    nsfw: true,
-    plugins: [
-        new YtDlpPlugin(ytDlpOptions),
-    ],
-    ffmpeg: isDockerDeploy ? undefined : { path: ffmpeg },
-};
+// Initialize DisTube
+if (isDockerDeploy) {
+    client.distube = new DisTube(client, {
+        emitNewSongOnly: true,
+        emitAddSongWhenCreatingQueue: false,
+        emitAddListWhenCreatingQueue: false,
+        savePreviousSongs: true,
+        nsfw: true,
+        plugins: [
+            new YtDlpPlugin(ytDlpOptions),
+        ],
+    });
+} else {
+    client.distube = new DisTube(client, {
+        emitNewSongOnly: true,
+        emitAddSongWhenCreatingQueue: false,
+        emitAddListWhenCreatingQueue: false,
+        savePreviousSongs: true,
+        nsfw: true,
+        plugins: [
+            new YtDlpPlugin(ytDlpOptions),
+        ],
+        ffmpeg: {
+            path: ffmpeg,
+        },
+    });
+}
 
-client.distube = new DisTube(client, distubeOptions);
-
-// Lidar com erros do DisTube, incluindo restrições de idade
+// Handle DisTube errors, including age restriction
 client.distube.on('error', async (channel, error) => {
     try {
         if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
@@ -85,20 +98,29 @@ client.distube.on('error', async (channel, error) => {
     }
 });
 
-// Função para login com Selenium e confirmar que o usuário não é um bot
+// Function to login with Selenium and confirm that the user is not a bot
 async function loginWithSelenium() {
-    const driver = await new Builder().forBrowser('chrome').setChromeOptions(new chrome.Options()).build();
+    // Configure Chrome options for headless mode and Docker/CI environments
+    const chromeOptions = new chrome.Options()
+        .addArguments('--headless') // Run Chrome in headless mode
+        .addArguments('--no-sandbox') // Necessary for some containerized environments like Docker
+        .addArguments('--disable-dev-shm-usage') // Resolves issues with shared memory
+        .addArguments('--remote-debugging-port=9222'); // Enable remote debugging if needed
+
+    // Initialize WebDriver with the Chrome options
+    const driver = await new Builder().forBrowser('chrome').setChromeOptions(chromeOptions).build();
+
     try {
         await driver.get('https://accounts.google.com/');
         
-        // Preencher o email
+        // Fill in email
         await driver.findElement(By.id('identifierId')).sendKeys(GOOGLE_EMAIL, Key.RETURN);
         await driver.wait(until.elementLocated(By.name('password')), 10000);
         
-        // Preencher a senha
+        // Fill in password
         await driver.findElement(By.name('password')).sendKeys(GOOGLE_PASSWORD, Key.RETURN);
         
-        // Lidar com verificação de bot ou login
+        // Handle bot check or login
         await driver.wait(until.elementLocated(By.id('avatar-btn')), 10000);
         console.log('Login realizado com sucesso!');
     } finally {
@@ -106,15 +128,15 @@ async function loginWithSelenium() {
     }
 }
 
-// Chamar loginWithSelenium antes de iniciar o cliente do Discord
+// Call loginWithSelenium before starting Discord client
 loginWithSelenium().catch(console.error);
 
-// Quando o cliente estiver pronto, execute esse código (apenas uma vez)
+// When the client is ready, run this code (only once)
 client.once(Events.ClientReady, (c) => {
-    console.log(`Pronto! Logado como ${c.user.tag}`);
+    console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
-// Registrar o comando mention
+// Register the mention command
 const mentionCommand = require('./commands/mention'); 
 
 client.on('messageCreate', async (message) => {
@@ -122,7 +144,7 @@ client.on('messageCreate', async (message) => {
 
     if (message.author.bot || !message.guild) return;
 
-    // Verificar se o bot foi mencionado
+    // Check if bot was mentioned
     if (message.mentions.has(client.user)) {
         if (mentionCommand) {
             try {
@@ -166,7 +188,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     );
 
     if (!command) {
-        console.error(`Nenhum comando correspondente a ${interaction.commandName} foi encontrado.`);
+        console.error(`No command matching ${interaction.commandName} was found.`);
         return;
     }
 
@@ -176,17 +198,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         console.error(error);
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp({
-                content: 'Houve um erro ao executar este comando!',
+                content: 'There was an error while executing this command!',
                 ephemeral: true,
             });
         } else {
             await interaction.reply({
-                content: 'Houve um erro ao executar este comando!',
+                content: 'There was an error while executing this command!',
                 ephemeral: true,
             });
         }
     }
 });
 
-// Logar no Discord com o token do cliente
+// Log in to Discord with your client's token
 client.login(token);
