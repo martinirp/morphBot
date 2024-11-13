@@ -1,19 +1,22 @@
-// Require the necessary discord.js classes
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+import { Client, Events, GatewayIntentBits, Collection } from 'discord.js';
+import ffmpeg from 'ffmpeg-static'; // Importando ffmpeg corretamente
+import dotenv from 'dotenv'; // Usando dotenv
+import { YtDlpPlugin } from '@distube/yt-dlp';
+import { DisTube } from 'distube';
+import registerCommands from './registers/commands-register.js'; // Usando extensão .js
+import registerSlashCommands from './registers/slash-commands-register.js'; // Usando extensão .js
+import mentionCommand from './commands/mention.js'; // Usando extensão .js
 
-// Get FFmpeg path from node_modules
-const ffmpeg = require('ffmpeg-static');
-
-// Load dotenv variables
-require('dotenv').config();
+// Carregar variáveis de ambiente
+dotenv.config();
 
 const { token } = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
-// Path to cookies file (Assuming 'data' folder is at the root of the bot project)
-const cookiesFilePath = process.env.COOKIE_FILE_PATH || './data/cookies.txt'; // Get cookies path from env
+// Caminho para o arquivo de cookies
+const cookiesFilePath = process.env.COOKIE_FILE_PATH || './data/cookies.txt';
 
-// Create a new client instance
+// Criar uma nova instância do cliente Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -27,18 +30,13 @@ client.commands = new Collection();
 client.aliases = new Collection();
 client.slashCommands = new Collection();
 
-// Register prefix commands
-const registerCommands = require('./registers/commands-register');
+// Registrar comandos de prefixo
 registerCommands(client);
 
-// Register slash commands
-const registerSlashCommands = require('./registers/slash-commands-register');
+// Registrar comandos de barra
 registerSlashCommands(client);
 
-// DISTUBE
-const { YtDlpPlugin } = require('@distube/yt-dlp');
-const { DisTube } = require('distube');
-
+// Configurar o DisTube
 if (isDockerDeploy) {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
@@ -66,14 +64,11 @@ if (isDockerDeploy) {
     });
 }
 
-// Handle DisTube errors, including age restriction
+// Tratar erros do DisTube
 client.distube.on('error', async (channel, error) => {
     try {
         if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
-            // Send a message if age confirmation is required
             await channel.send('Este vídeo requer confirmação de idade e não pode ser reproduzido.');
-            
-            // Get the queue and skip the current song if it's active
             const queue = client.distube.getQueue(channel);
             if (queue) await queue.skip();
         } else {
@@ -86,20 +81,17 @@ client.distube.on('error', async (channel, error) => {
     }
 });
 
-// When the client is ready, run this code (only once)
+// Quando o cliente estiver pronto, execute esse código (uma vez)
 client.once(Events.ClientReady, (c) => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
-// Register the mention command
-const mentionCommand = require('./commands/mention'); // Ajuste o caminho se necessário
-
+// Registrar o comando de menção
 client.on('messageCreate', async (message) => {
     const prefix = "'";
 
     if (message.author.bot || !message.guild) return;
 
-    // Verifica se o bot foi mencionado
     if (message.mentions.has(client.user)) {
         if (mentionCommand) {
             try {
@@ -109,7 +101,7 @@ client.on('messageCreate', async (message) => {
                 message.channel.send(`Erro ao executar o comando: \`${e.message}\``);
             }
         }
-        return; // Evita que o código abaixo seja executado se o bot for mencionado
+        return;
     }
 
     if (!message.content.startsWith(prefix)) return;
@@ -123,7 +115,6 @@ client.on('messageCreate', async (message) => {
 
     if (!cmd) return;
 
-    // Verificação de permissão no canal de voz
     if (cmd.inVoiceChannel && !message.member.voice.channel) {
         return message.channel.send('Você deve estar em um canal de voz!');
     }
@@ -139,14 +130,10 @@ client.on('messageCreate', async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
-    const command = interaction.client.slashCommands.get(
-        interaction.commandName
-    );
+    const command = interaction.client.slashCommands.get(interaction.commandName);
 
     if (!command) {
-        console.error(
-            `No command matching ${interaction.commandName} was found.`
-        );
+        console.error(`No command matching ${interaction.commandName} was found.`);
         return;
     }
 
@@ -168,5 +155,5 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
-// Log in to Discord with your client's token
+// Fazer login no Discord com o token do cliente
 client.login(token);
