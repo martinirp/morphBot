@@ -7,7 +7,7 @@ const ffmpeg = require('ffmpeg-static');
 // Load dotenv variables
 require('dotenv').config();
 
-const { token, COOKIE_FILE_PATH } = process.env;
+const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Log the cookie file path for verification
@@ -40,6 +40,12 @@ const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
 // Configure DisTube with cookie path from .env
+const ytDlpOptions = {
+    cookieFile: COOKIE_FILE_PATH, // Set the cookie file path here
+    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36', // Custom User-Agent
+    proxy: YTDL_PROXY || '', // Set the proxy if provided in .env
+};
+
 if (isDockerDeploy) {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
@@ -48,7 +54,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin({ cookieFile: COOKIE_FILE_PATH }), // Set the cookie file path here
+            new YtDlpPlugin(ytDlpOptions),
         ],
     });
 } else {
@@ -59,7 +65,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin({ cookieFile: COOKIE_FILE_PATH }), // Set the cookie file path here
+            new YtDlpPlugin(ytDlpOptions),
         ],
         ffmpeg: {
             path: ffmpeg,
