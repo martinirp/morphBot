@@ -60,7 +60,7 @@ module.exports = {
 
         // Parte para usar os cookies com yt-dlp (caso esteja configurado)
         const ytDlpPath = path.join(__dirname, 'yt-dlp'); // Certifique-se de que o yt-dlp está no caminho correto ou forneça o caminho absoluto
-        const cookiesPath = path.join(__dirname, '..', 'data', 'cookies.txt');
+        const cookiesPath = path.join(__dirname, '..', 'data', 'cookies.json');
 
         // Verifica se os cookies estão no caminho correto e se o arquivo existe
         const cookiesExist = fs.existsSync(cookiesPath);
