@@ -91,12 +91,10 @@ async function loginWithSelenium() {
         .addArguments('--disable-dev-shm-usage') // Resolves problemas com memória compartilhada
         .addArguments('--remote-debugging-port=9222'); // Habilita o depurador remoto, se necessário
 
-    // Inicializar o WebDriver com as opções do Chrome
-    const service = new chrome.ServiceBuilder(chromedriver.path).build();
+    // Inicializar o WebDriver sem a necessidade de usar o ServiceBuilder
     const driver = await new Builder()
         .forBrowser('chrome')
         .setChromeOptions(chromeOptions)
-        .setChromeService(service)
         .build();
 
     try {
