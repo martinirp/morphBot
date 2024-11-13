@@ -7,26 +7,7 @@ const ffmpeg = require('ffmpeg-static');
 // Carregar as variáveis do dotenv
 require('dotenv').config();
 
-const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY, GOOGLE_EMAIL, GOOGLE_PASSWORD } = process.env;
-const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
-
-// Logar o caminho do arquivo de cookies para verificação
-console.log(`Usando cookies de: ${COOKIE_FILE_PATH}`);
-
-// Configuração do Selenium
-const { Builder, By, Key, until } = require('selenium-webdriver');
-const chrome = require('selenium-webdriver/chrome');
-const chromedriver = require('chromedriver');
-
-// Configuração dos cookies e cabeçalhos para download do YouTube
-const ytDlpOptions = {
-    cookieFile: COOKIE_FILE_PATH,
-    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-    proxy: YTDL_PROXY || '',
-    headers: {
-        referer: 'https://www.youtube.com/',
-    },
-};
+const { token } = process.env;
 
 // Criar uma nova instância do cliente
 const client = new Client({
@@ -55,75 +36,21 @@ const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
 // Inicializar DisTube
-if (isDockerDeploy) {
-    client.distube = new DisTube(client, {
-        emitNewSongOnly: true,
-        emitAddSongWhenCreatingQueue: false,
-        emitAddListWhenCreatingQueue: false,
-        savePreviousSongs: true,
-        nsfw: true,
-        plugins: [
-            new YtDlpPlugin(ytDlpOptions),
-        ],
-    });
-} else {
-    client.distube = new DisTube(client, {
-        emitNewSongOnly: true,
-        emitAddSongWhenCreatingQueue: false,
-        emitAddListWhenCreatingQueue: false,
-        savePreviousSongs: true,
-        nsfw: true,
-        plugins: [
-            new YtDlpPlugin(ytDlpOptions),
-        ],
-        ffmpeg: {
-            path: ffmpeg,
-        },
-    });
-}
-
-// Função para login com Selenium e confirmação de que o usuário não é um bot
-async function loginWithSelenium() {
-    console.log('Tentando conectar com o Google...');
-
-    // Configurar as opções do Chrome para modo headless e ambientes Docker/CI
-    const chromeOptions = new chrome.Options()
-        .addArguments('--headless') // Rodar o Chrome em modo headless
-        .addArguments('--no-sandbox') // Necessário para alguns ambientes como Docker
-        .addArguments('--disable-dev-shm-usage') // Resolve problemas com memória compartilhada
-        .addArguments('--remote-debugging-port=9222'); // Habilita o depurador remoto, se necessário
-
-    // Inicializar o WebDriver sem a necessidade de usar o ServiceBuilder
-    const driver = await new Builder()
-        .forBrowser('chrome')
-        .setChromeOptions(chromeOptions)
-        .build();
-
-    try {
-        await driver.get('https://accounts.google.com/');
-
-        // Preencher o e-mail
-        await driver.findElement(By.id('identifierId')).sendKeys(GOOGLE_EMAIL, Key.RETURN);
-        
-        // Espera até o campo de senha ser carregado
-        await driver.wait(until.elementLocated(By.name('password')), 30000);
-        
-        // Preencher a senha
-        await driver.findElement(By.name('password')).sendKeys(GOOGLE_PASSWORD, Key.RETURN);
-        
-        // Verificar a tela de login ou bot
-        await driver.wait(until.elementLocated(By.id('avatar-btn')), 30000);
-        
-        console.log('Conectado com sucesso!');
-    } catch (err) {
-        console.error('Não consegui conectar:', err);
-    } finally {
-        await driver.quit();
-    }
-}
-
-// Chamar loginWithSelenium antes de iniciar o cliente do Discord
-loginWithSelenium().catch((err) => console.error('Erro na execução do login com Selenium:', err));
+client.distube = new DisTube(client, {
+    emitNewSongOnly: true,
+    emitAddSongWhenCreatingQueue: false,
+    emitAddListWhenCreatingQueue: false,
+    savePreviousSongs: true,
+    nsfw: true,
+    plugins: [
+        new YtDlpPlugin({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+        }),
+    ],
+    ffmpeg: {
+        path: ffmpeg,
+    },
+});
 
 // Quando o cliente estiver pronto, executar este código (apenas uma vez)
 client.once(Events.ClientReady, (c) => {
