@@ -1,26 +1,6 @@
-const fs = require('fs');  // Adicionando o fs para manipulação de arquivos
 const { Client, Message } = require('discord.js');
 const { exec } = require('child_process');
 const path = require('path');
-
-// Caminho para o arquivo links.txt
-const filePath = path.join(__dirname, '..', 'data', 'links.txt');
-
-// Função para salvar o link no arquivo
-function saveLink(link) {
-    try {
-        // Verifica se o arquivo existe
-        if (!fs.existsSync(filePath)) {
-            // Se não existir, cria um arquivo vazio
-            fs.writeFileSync(filePath, '', 'utf8');
-        }
-        // Adiciona o link ao arquivo
-        fs.appendFileSync(filePath, link + '\n', 'utf8');
-        console.log(`Link adicionado ao arquivo TXT: ${link}`);
-    } catch (error) {
-        console.error(`Erro ao salvar link: ${error}`);
-    }
-}
 
 module.exports = {
     name: 'play',
@@ -46,7 +26,6 @@ module.exports = {
                 message.channel.send(`Coe ${message.author.displayName}, vou tocar esse link`);
             }
         } else {
-            // Caso não seja um link, utiliza o MyCustomExtractor para resolver o nome
             const teste = new MyCustomExtractor();
             const resolved = await teste.resolve(string);
 
@@ -73,25 +52,25 @@ module.exports = {
                 }
                 if (stderr) {
                     console.error(`stderr: ${stderr}`);
-                    return message.channel.send('Erro ao tentar baixar o conteúdo.');
+                    return message.channel.send(stderr);
                 }
-                console.log(`stdout: ${stdout}`);
+
+                message.channel.send(stdout);
             });
         } else {
-            message.channel.send('Não encontrei cookies para autenticação. Verifique o arquivo "cookies.json".');
-        }
+            // Se os cookies não existirem, apenas executa o yt-dlp sem cookies
+            exec(`${ytDlpPath} ${url}`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Erro ao rodar yt-dlp: ${error.message}`);
+                    return message.channel.send('Erro ao tentar baixar o conteúdo.');
+                }
+                if (stderr) {
+                    console.error(`stderr: ${stderr}`);
+                    return message.channel.send(stderr);
+                }
 
-        // Tocar o link
-        client.distube.play(message.member.voice.channel, url, {
-            member: message.member,
-            textChannel: message.channel,
-            message,
-        });
-
-        // Chamar o comando save para armazenar o link
-        const saveCommand = client.commands.get('save');
-        if (saveCommand) {
-            saveCommand.execute(message, client, [url]);
+                message.channel.send(stdout);
+            });
         }
-    },
+    }
 };
