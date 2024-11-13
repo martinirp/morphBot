@@ -1,5 +1,6 @@
 const MyCustomExtractor = require('./../myCustomExtractor');
 const { Client, Message } = require('discord.js');
+const { exec } = require('child_process');
 
 // Caminho para o arquivo links.txt
 const path = require('path');
@@ -55,6 +56,29 @@ module.exports = {
 
             url = resolved.url;
             message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
+        }
+
+        // Parte para usar os cookies com yt-dlp (caso esteja configurado)
+        const ytDlpPath = path.join(__dirname, 'yt-dlp'); // Certifique-se de que o yt-dlp está no caminho correto ou forneça o caminho absoluto
+        const cookiesPath = path.join(__dirname, '..', 'data', 'cookies.txt');
+
+        // Verifica se os cookies estão no caminho correto e se o arquivo existe
+        const cookiesExist = fs.existsSync(cookiesPath);
+        if (cookiesExist) {
+            // Comando para rodar o yt-dlp com os cookies
+            exec(`${ytDlpPath} --cookies ${cookiesPath} ${url}`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Erro ao rodar yt-dlp: ${error.message}`);
+                    return message.channel.send('Erro ao tentar baixar o conteúdo.');
+                }
+                if (stderr) {
+                    console.error(`stderr: ${stderr}`);
+                    return message.channel.send('Erro ao tentar baixar o conteúdo.');
+                }
+                console.log(`stdout: ${stdout}`);
+            });
+        } else {
+            message.channel.send('Não encontrei cookies para autenticação. Verifique o arquivo "cookies.txt".');
         }
 
         // Tocar o link
