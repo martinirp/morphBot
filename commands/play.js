@@ -1,4 +1,4 @@
-const fs = require('fs');  // Adicione esta linha para importar o módulo fs
+const fs = require('fs');  // Adiciona a importação do módulo fs
 const MyCustomExtractor = require('./../myCustomExtractor');
 const { Client, Message } = require('discord.js');
 const { exec } = require('child_process');
@@ -78,7 +78,7 @@ module.exports = {
                 console.log(`stdout: ${stdout}`);
             });
         } else {
-            message.channel.send('Não encontrei cookies para autenticação. Verifique o arquivo "cookies.txt".');
+            message.channel.send('Não encontrei cookies para autenticação. Verifique o arquivo "cookies.json".');
         }
 
         // Tocar o link
@@ -88,7 +88,7 @@ module.exports = {
             message,
         });
 
-        // Chamar o comando save para armazenar o link
+        // Chama o comando save para armazenar o link
         const saveCommand = client.commands.get('save');
         if (saveCommand) {
             saveCommand.execute(message, client, [url]);
