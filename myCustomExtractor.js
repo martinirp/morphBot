@@ -83,8 +83,13 @@ class MyCustomExtractor extends ExtractorPlugin {
         console.log(`Extracting from URL: ${url}`);
         try {
             await this.loginWithSelenium(); // Garantir que o login foi feito antes de extrair o conteúdo
+            if (fs.existsSync(this.cookiesPath)) {
+                const cookies = JSON.parse(fs.readFileSync(this.cookiesPath));
+                await this.ytdlp.setCookies(cookies); // Usar os cookies carregados
+            }
+
             const info = await this.ytdlp.getInfo(url, {
-                cookies: this.cookiesPath
+                cookies: this.cookiesPath // Passando o caminho dos cookies
             });
             return {
                 name: info.title,
