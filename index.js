@@ -7,8 +7,11 @@ const ffmpeg = require('ffmpeg-static');
 // Load dotenv variables
 require('dotenv').config();
 
-const { token } = process.env.DISCORD_TOKEN;
+const { token, COOKIE_FILE_PATH } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
+
+// Log the cookie file path for verification
+console.log(`Using cookies from: ${COOKIE_FILE_PATH}`);
 
 // Create a new client instance
 const client = new Client({
@@ -36,6 +39,7 @@ registerSlashCommands(client);
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
+// Configure DisTube with cookie path from .env
 if (isDockerDeploy) {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
@@ -44,7 +48,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin({ cookieFile: COOKIE_FILE_PATH }), // Set the cookie file path here
         ],
     });
 } else {
@@ -55,7 +59,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin({ cookieFile: COOKIE_FILE_PATH }), // Set the cookie file path here
         ],
         ffmpeg: {
             path: ffmpeg,
@@ -89,14 +93,14 @@ client.once(Events.ClientReady, (c) => {
 });
 
 // Register the mention command
-const mentionCommand = require('./commands/mention'); // Ajuste o caminho se necessário
+const mentionCommand = require('./commands/mention'); // Adjust the path if necessary
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
 
     if (message.author.bot || !message.guild) return;
 
-    // Verifica se o bot foi mencionado
+    // Check if bot was mentioned
     if (message.mentions.has(client.user)) {
         if (mentionCommand) {
             try {
@@ -106,7 +110,7 @@ client.on('messageCreate', async (message) => {
                 message.channel.send(`Erro ao executar o comando: \`${e.message}\``);
             }
         }
-        return; // Evita que o código abaixo seja executado se o bot for mencionado
+        return; // Prevent other code from executing if bot is mentioned
     }
 
     if (!message.content.startsWith(prefix)) return;
