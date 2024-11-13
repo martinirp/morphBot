@@ -1,10 +1,9 @@
-const fs = require('fs');  // Adiciona a importação do módulo fs
-const MyCustomExtractor = require('./../myCustomExtractor');
+const fs = require('fs');  // Adicionando o fs para manipulação de arquivos
 const { Client, Message } = require('discord.js');
 const { exec } = require('child_process');
+const path = require('path');
 
 // Caminho para o arquivo links.txt
-const path = require('path');
 const filePath = path.join(__dirname, '..', 'data', 'links.txt');
 
 // Função para salvar o link no arquivo
@@ -30,6 +29,7 @@ module.exports = {
     inVoiceChannel: true,
     execute: async (message, client, args) => {
         const string = args.join(' ');
+
         if (!string) {
             return message.channel.send('Não dá pra procurar nada desse jeito!');
         }
@@ -59,7 +59,7 @@ module.exports = {
         }
 
         // Parte para usar os cookies com yt-dlp (caso esteja configurado)
-        const ytDlpPath = path.join(__dirname, 'yt-dlp'); // Certifique-se de que o yt-dlp está no caminho correto ou forneça o caminho absoluto
+        const ytDlpPath = path.join(__dirname, 'yt-dlp'); // Certifique-se de que o yt-dlp está no caminho correto
         const cookiesPath = path.join(__dirname, '..', 'data', 'cookies.json');
 
         // Verifica se os cookies estão no caminho correto e se o arquivo existe
@@ -88,7 +88,7 @@ module.exports = {
             message,
         });
 
-        // Chama o comando save para armazenar o link
+        // Chamar o comando save para armazenar o link
         const saveCommand = client.commands.get('save');
         if (saveCommand) {
             saveCommand.execute(message, client, [url]);
