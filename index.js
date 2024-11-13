@@ -1,33 +1,33 @@
-// Require the necessary discord.js classes
+// Requerendo as classes necessárias do discord.js
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 
-// Get FFmpeg path from node_modules
+// Obter o caminho do FFmpeg
 const ffmpeg = require('ffmpeg-static');
 
-// Load dotenv variables
+// Carregar as variáveis do .env
 require('dotenv').config();
 
 const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY, GOOGLE_EMAIL, GOOGLE_PASSWORD } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
-// Log the cookie file path for verification
-console.log(`Using cookies from: ${COOKIE_FILE_PATH}`);
+// Logando o caminho do arquivo de cookies para verificação
+console.log(`Utilizando cookies de: ${COOKIE_FILE_PATH}`);
 
-// Selenium setup
+// Configuração do Selenium
 const { Builder, By, Key, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 
-// Configure cookies and headers for YouTube download
+// Configurar cookies e headers para download do YouTube
 const ytDlpOptions = {
-    cookieFile: COOKIE_FILE_PATH, 
+    cookieFile: COOKIE_FILE_PATH,
     userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-    proxy: YTDL_PROXY || '', 
+    proxy: YTDL_PROXY || '',
     headers: {
         referer: 'https://www.youtube.com/',
     },
 };
 
-// Create a new client instance
+// Criando uma nova instância do cliente Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -41,11 +41,11 @@ client.commands = new Collection();
 client.aliases = new Collection();
 client.slashCommands = new Collection();
 
-// Register prefix commands
+// Registrar comandos de prefixo
 const registerCommands = require('./registers/commands-register');
 registerCommands(client);
 
-// Register slash commands
+// Registrar comandos de barra
 const registerSlashCommands = require('./registers/slash-commands-register');
 registerSlashCommands(client);
 
@@ -53,35 +53,22 @@ registerSlashCommands(client);
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
-// Initialize DisTube
-if (isDockerDeploy) {
-    client.distube = new DisTube(client, {
-        emitNewSongOnly: true,
-        emitAddSongWhenCreatingQueue: false,
-        emitAddListWhenCreatingQueue: false,
-        savePreviousSongs: true,
-        nsfw: true,
-        plugins: [
-            new YtDlpPlugin(ytDlpOptions),
-        ],
-    });
-} else {
-    client.distube = new DisTube(client, {
-        emitNewSongOnly: true,
-        emitAddSongWhenCreatingQueue: false,
-        emitAddListWhenCreatingQueue: false,
-        savePreviousSongs: true,
-        nsfw: true,
-        plugins: [
-            new YtDlpPlugin(ytDlpOptions),
-        ],
-        ffmpeg: {
-            path: ffmpeg,
-        },
-    });
-}
+// Inicializar DisTube
+const distubeOptions = {
+    emitNewSongOnly: true,
+    emitAddSongWhenCreatingQueue: false,
+    emitAddListWhenCreatingQueue: false,
+    savePreviousSongs: true,
+    nsfw: true,
+    plugins: [
+        new YtDlpPlugin(ytDlpOptions),
+    ],
+    ffmpeg: isDockerDeploy ? undefined : { path: ffmpeg },
+};
 
-// Handle DisTube errors, including age restriction
+client.distube = new DisTube(client, distubeOptions);
+
+// Lidar com erros do DisTube, incluindo restrições de idade
 client.distube.on('error', async (channel, error) => {
     try {
         if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
@@ -98,20 +85,20 @@ client.distube.on('error', async (channel, error) => {
     }
 });
 
-// Function to login with Selenium and confirm that the user is not a bot
+// Função para login com Selenium e confirmar que o usuário não é um bot
 async function loginWithSelenium() {
     const driver = await new Builder().forBrowser('chrome').setChromeOptions(new chrome.Options()).build();
     try {
         await driver.get('https://accounts.google.com/');
         
-        // Fill in email
+        // Preencher o email
         await driver.findElement(By.id('identifierId')).sendKeys(GOOGLE_EMAIL, Key.RETURN);
         await driver.wait(until.elementLocated(By.name('password')), 10000);
         
-        // Fill in password
+        // Preencher a senha
         await driver.findElement(By.name('password')).sendKeys(GOOGLE_PASSWORD, Key.RETURN);
         
-        // Handle bot check or login
+        // Lidar com verificação de bot ou login
         await driver.wait(until.elementLocated(By.id('avatar-btn')), 10000);
         console.log('Login realizado com sucesso!');
     } finally {
@@ -119,15 +106,15 @@ async function loginWithSelenium() {
     }
 }
 
-// Call loginWithSelenium before starting Discord client
+// Chamar loginWithSelenium antes de iniciar o cliente do Discord
 loginWithSelenium().catch(console.error);
 
-// When the client is ready, run this code (only once)
+// Quando o cliente estiver pronto, execute esse código (apenas uma vez)
 client.once(Events.ClientReady, (c) => {
-    console.log(`Ready! Logged in as ${c.user.tag}`);
+    console.log(`Pronto! Logado como ${c.user.tag}`);
 });
 
-// Register the mention command
+// Registrar o comando mention
 const mentionCommand = require('./commands/mention'); 
 
 client.on('messageCreate', async (message) => {
@@ -135,7 +122,7 @@ client.on('messageCreate', async (message) => {
 
     if (message.author.bot || !message.guild) return;
 
-    // Check if bot was mentioned
+    // Verificar se o bot foi mencionado
     if (message.mentions.has(client.user)) {
         if (mentionCommand) {
             try {
@@ -179,7 +166,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     );
 
     if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
+        console.error(`Nenhum comando correspondente a ${interaction.commandName} foi encontrado.`);
         return;
     }
 
@@ -189,17 +176,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         console.error(error);
         if (interaction.replied || interaction.deferred) {
             await interaction.followUp({
-                content: 'There was an error while executing this command!',
+                content: 'Houve um erro ao executar este comando!',
                 ephemeral: true,
             });
         } else {
             await interaction.reply({
-                content: 'There was an error while executing this command!',
+                content: 'Houve um erro ao executar este comando!',
                 ephemeral: true,
             });
         }
     }
 });
 
-// Log in to Discord with your client's token
+// Logar no Discord com o token do cliente
 client.login(token);
