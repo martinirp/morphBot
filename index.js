@@ -1,16 +1,16 @@
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
-const ffmpeg = require('ffmpeg-static'); // Usando o require
-const dotenv = require('dotenv'); // Usando dotenv com require
-const { YtDlpPlugin } = require('@distube/yt-dlp');
-const { DisTube } = require('distube');
-const registerCommands = require('./registers/commands-register'); // Removendo a extensão .js
-const registerSlashCommands = require('./registers/slash-commands-register'); // Removendo a extensão .js
-const mentionCommand = require('./commands/mention'); // Removendo a extensão .js
+import { Client, Events, GatewayIntentBits, Collection } from 'discord.js';
+import ffmpeg from 'ffmpeg-static'; // Usando o import
+import dotenv from 'dotenv'; // Usando dotenv com import
+import { YtDlpPlugin } from '@distube/yt-dlp';
+import { DisTube } from 'distube';
+import registerCommands from './registers/commands-register.js';
+import registerSlashCommands from './registers/slash-commands-register.js';
+import mentionCommand from './commands/mention.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
 
-const { token } = process.env.DISCORD_TOKEN;
+const token = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Caminho para o arquivo de cookies
@@ -31,10 +31,10 @@ client.aliases = new Collection();
 client.slashCommands = new Collection();
 
 // Registrar comandos de prefixo
-registerCommands(client);
+await registerCommands(client);
 
 // Registrar comandos de barra
-registerSlashCommands(client);
+await registerSlashCommands(client);
 
 // Configurar o DisTube
 if (isDockerDeploy) {
