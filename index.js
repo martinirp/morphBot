@@ -32,7 +32,7 @@ registerCommands(client);
 const registerSlashCommands = require('./registers/slash-commands-register');
 registerSlashCommands(client);
 
-// DISTUBE
+// DISTUBE with yt-dlp
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
@@ -44,7 +44,7 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin(), // yt-dlp plugin is being used here
         ],
     });
 } else {
@@ -55,10 +55,10 @@ if (isDockerDeploy) {
         savePreviousSongs: true,
         nsfw: true,
         plugins: [
-            new YtDlpPlugin(),
+            new YtDlpPlugin(), // yt-dlp plugin for better YouTube video support
         ],
         ffmpeg: {
-            path: ffmpeg,
+            path: ffmpeg, // Ensure FFmpeg path is set
         },
     });
 }
@@ -89,14 +89,14 @@ client.once(Events.ClientReady, (c) => {
 });
 
 // Register the mention command
-const mentionCommand = require('./commands/mention'); // Ajuste o caminho se necessário
+const mentionCommand = require('./commands/mention'); // Adjust path if necessary
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
 
     if (message.author.bot || !message.guild) return;
 
-    // Verifica se o bot foi mencionado
+    // Verifies if the bot was mentioned
     if (message.mentions.has(client.user)) {
         if (mentionCommand) {
             try {
@@ -106,7 +106,7 @@ client.on('messageCreate', async (message) => {
                 message.channel.send(`Erro ao executar o comando: \`${e.message}\``);
             }
         }
-        return; // Evita que o código abaixo seja executado se o bot for mencionado
+        return; // Prevents executing the following code if the bot was mentioned
     }
 
     if (!message.content.startsWith(prefix)) return;
