@@ -1,3 +1,4 @@
+const fs = require('fs');  // Adicione esta linha para importar o módulo fs
 const MyCustomExtractor = require('./../myCustomExtractor');
 const { Client, Message } = require('discord.js');
 const { exec } = require('child_process');
@@ -8,7 +9,6 @@ const filePath = path.join(__dirname, '..', 'data', 'links.txt');
 
 // Função para salvar o link no arquivo
 function saveLink(link) {
-    const fs = require('fs');
     try {
         // Verifica se o arquivo existe
         if (!fs.existsSync(filePath)) {
