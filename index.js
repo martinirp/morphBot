@@ -20,9 +20,9 @@ const chromedriver = require('chromedriver');
 
 // Configuração dos cookies e cabeçalhos para download do YouTube
 const ytDlpOptions = {
-    cookieFile: COOKIE_FILE_PATH, 
+    cookieFile: COOKIE_FILE_PATH,
     userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-    proxy: YTDL_PROXY || '', 
+    proxy: YTDL_PROXY || '',
     headers: {
         referer: 'https://www.youtube.com/',
     },
@@ -84,11 +84,13 @@ if (isDockerDeploy) {
 
 // Função para login com Selenium e confirmação de que o usuário não é um bot
 async function loginWithSelenium() {
+    console.log('Tentando conectar com o Google...');
+
     // Configurar as opções do Chrome para modo headless e ambientes Docker/CI
     const chromeOptions = new chrome.Options()
         .addArguments('--headless') // Rodar o Chrome em modo headless
         .addArguments('--no-sandbox') // Necessário para alguns ambientes como Docker
-        .addArguments('--disable-dev-shm-usage') // Resolves problemas com memória compartilhada
+        .addArguments('--disable-dev-shm-usage') // Resolve problemas com memória compartilhada
         .addArguments('--remote-debugging-port=9222'); // Habilita o depurador remoto, se necessário
 
     // Inicializar o WebDriver sem a necessidade de usar o ServiceBuilder
@@ -99,24 +101,29 @@ async function loginWithSelenium() {
 
     try {
         await driver.get('https://accounts.google.com/');
-        
+
         // Preencher o e-mail
         await driver.findElement(By.id('identifierId')).sendKeys(GOOGLE_EMAIL, Key.RETURN);
-        await driver.wait(until.elementLocated(By.name('password')), 10000);
+        
+        // Espera até o campo de senha ser carregado
+        await driver.wait(until.elementLocated(By.name('password')), 30000);
         
         // Preencher a senha
         await driver.findElement(By.name('password')).sendKeys(GOOGLE_PASSWORD, Key.RETURN);
         
         // Verificar a tela de login ou bot
-        await driver.wait(until.elementLocated(By.id('avatar-btn')), 10000);
-        console.log('Login realizado com sucesso!');
+        await driver.wait(until.elementLocated(By.id('avatar-btn')), 30000);
+        
+        console.log('Conectado com sucesso!');
+    } catch (err) {
+        console.error('Não consegui conectar:', err);
     } finally {
         await driver.quit();
     }
 }
 
 // Chamar loginWithSelenium antes de iniciar o cliente do Discord
-loginWithSelenium().catch(console.error);
+loginWithSelenium().catch((err) => console.error('Erro na execução do login com Selenium:', err));
 
 // Quando o cliente estiver pronto, executar este código (apenas uma vez)
 client.once(Events.ClientReady, (c) => {
@@ -124,7 +131,7 @@ client.once(Events.ClientReady, (c) => {
 });
 
 // Registrar o comando mention
-const mentionCommand = require('./commands/mention'); 
+const mentionCommand = require('./commands/mention');
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
