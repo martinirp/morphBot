@@ -7,11 +7,25 @@ const ffmpeg = require('ffmpeg-static');
 // Load dotenv variables
 require('dotenv').config();
 
-const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY } = process.env;
+const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY, GOOGLE_EMAIL, GOOGLE_PASSWORD } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Log the cookie file path for verification
 console.log(`Using cookies from: ${COOKIE_FILE_PATH}`);
+
+// Selenium setup
+const { Builder, By, Key, until } = require('selenium-webdriver');
+const chrome = require('selenium-webdriver/chrome');
+
+// Configure cookies and headers for YouTube download
+const ytDlpOptions = {
+    cookieFile: COOKIE_FILE_PATH, 
+    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+    proxy: YTDL_PROXY || '', 
+    headers: {
+        referer: 'https://www.youtube.com/',
+    },
+};
 
 // Create a new client instance
 const client = new Client({
@@ -39,16 +53,7 @@ registerSlashCommands(client);
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
-// Configure cookies and headers
-const ytDlpOptions = {
-    cookieFile: COOKIE_FILE_PATH, // Set the cookie file path here
-    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-    proxy: YTDL_PROXY || '', // Set the proxy if provided in .env
-    headers: {
-        referer: 'https://www.youtube.com/', // Referer to mimic browser
-    },
-};
-
+// Initialize DisTube
 if (isDockerDeploy) {
     client.distube = new DisTube(client, {
         emitNewSongOnly: true,
@@ -80,10 +85,7 @@ if (isDockerDeploy) {
 client.distube.on('error', async (channel, error) => {
     try {
         if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
-            // Send a message if age confirmation is required
             await channel.send('Este vídeo requer confirmação de idade e não pode ser reproduzido.');
-            
-            // Get the queue and skip the current song if it's active
             const queue = client.distube.getQueue(channel);
             if (queue) await queue.skip();
         } else {
@@ -96,13 +98,37 @@ client.distube.on('error', async (channel, error) => {
     }
 });
 
+// Function to login with Selenium and confirm that the user is not a bot
+async function loginWithSelenium() {
+    const driver = await new Builder().forBrowser('chrome').setChromeOptions(new chrome.Options()).build();
+    try {
+        await driver.get('https://accounts.google.com/');
+        
+        // Fill in email
+        await driver.findElement(By.id('identifierId')).sendKeys(GOOGLE_EMAIL, Key.RETURN);
+        await driver.wait(until.elementLocated(By.name('password')), 10000);
+        
+        // Fill in password
+        await driver.findElement(By.name('password')).sendKeys(GOOGLE_PASSWORD, Key.RETURN);
+        
+        // Handle bot check or login
+        await driver.wait(until.elementLocated(By.id('avatar-btn')), 10000);
+        console.log('Login realizado com sucesso!');
+    } finally {
+        await driver.quit();
+    }
+}
+
+// Call loginWithSelenium before starting Discord client
+loginWithSelenium().catch(console.error);
+
 // When the client is ready, run this code (only once)
 client.once(Events.ClientReady, (c) => {
     console.log(`Ready! Logged in as ${c.user.tag}`);
 });
 
 // Register the mention command
-const mentionCommand = require('./commands/mention'); // Adjust the path if necessary
+const mentionCommand = require('./commands/mention'); 
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
@@ -119,7 +145,7 @@ client.on('messageCreate', async (message) => {
                 message.channel.send(`Erro ao executar o comando: \`${e.message}\``);
             }
         }
-        return; // Prevent other code from executing if bot is mentioned
+        return;
     }
 
     if (!message.content.startsWith(prefix)) return;
@@ -134,9 +160,7 @@ client.on('messageCreate', async (message) => {
     if (!cmd) return;
 
     if (cmd.inVoiceChannel && !message.member.voice.channel) {
-        return message.channel.send(
-            'Você deve estar em um canal de voz!'
-        );
+        return message.channel.send('Você deve estar em um canal de voz!');
     }
 
     try {
@@ -155,9 +179,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     );
 
     if (!command) {
-        console.error(
-            `No command matching ${interaction.commandName} was found.`
-        );
+        console.error(`No command matching ${interaction.commandName} was found.`);
         return;
     }
 
