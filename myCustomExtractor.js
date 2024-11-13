@@ -1,13 +1,73 @@
 const { ExtractorPlugin } = require('distube');
 const ytsr = require('ytsr');
 const ytdlp = require('@distube/yt-dlp');
+const { Builder, By, until } = require('selenium-webdriver');
+const chrome = require('selenium-webdriver/chrome');
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config(); // Carrega variáveis de ambiente do .env
 
 class MyCustomExtractor extends ExtractorPlugin {
     constructor(options) {
         super(options);
         this.ytdlp = ytdlp;
         this.ytsr = ytsr;
+        this.driver = null;
+        this.cookiesPath = path.join(__dirname, '..', 'data', 'cookies.json');
         console.log('MyCustomExtractor initialized');
+    }
+
+    // Método para fazer login no YouTube via Selenium
+    async loginWithSelenium() {
+        if (fs.existsSync(this.cookiesPath)) {
+            console.log('Cookies already exist, skipping login');
+            return;
+        }
+
+        console.log('Starting login with Selenium...');
+        try {
+            // Criação do driver do Chrome
+            const options = new chrome.Options();
+            options.addArguments('headless'); // Rodar o Chrome sem interface gráfica
+            this.driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+
+            // Acesse o YouTube
+            await this.driver.get('https://www.youtube.com');
+            
+            // Espera até o botão de login aparecer
+            const loginButton = await this.driver.wait(until.elementLocated(By.css('ytd-button-renderer.style-scope.ytd-masthead')), 10000);
+            await loginButton.click();
+            
+            // Espera pela página de login carregar
+            await this.driver.wait(until.elementLocated(By.css('input[type="email"]')), 10000);
+            
+            // Preencher o email com a variável de ambiente
+            const emailInput = await this.driver.findElement(By.css('input[type="email"]'));
+            await emailInput.sendKeys(process.env.GOOGLE_EMAIL); // Usando o e-mail do .env
+            await this.driver.findElement(By.css('#identifierNext')).click();
+            
+            // Espera a página de senha carregar
+            await this.driver.wait(until.elementLocated(By.css('input[type="password"]')), 10000);
+            
+            // Preencher a senha com a variável de ambiente
+            const passwordInput = await this.driver.findElement(By.css('input[type="password"]'));
+            await passwordInput.sendKeys(process.env.GOOGLE_PASSWORD); // Usando a senha do .env
+            await this.driver.findElement(By.css('#passwordNext')).click();
+
+            // Aguarda a página principal carregar após o login
+            await this.driver.wait(until.elementLocated(By.css('ytd-masthead')), 10000);
+            console.log('Login successful');
+
+            // Salvar os cookies após o login
+            const cookies = await this.driver.manage().getCookies();
+            fs.writeFileSync(this.cookiesPath, JSON.stringify(cookies));
+        } catch (error) {
+            console.error('Erro no login com Selenium:', error);
+        } finally {
+            if (this.driver) {
+                await this.driver.quit();
+            }
+        }
     }
 
     async validate(url) {
@@ -22,7 +82,10 @@ class MyCustomExtractor extends ExtractorPlugin {
     async extract(url) {
         console.log(`Extracting from URL: ${url}`);
         try {
-            const info = await this.ytdlp.getInfo(url);
+            await this.loginWithSelenium(); // Garantir que o login foi feito antes de extrair o conteúdo
+            const info = await this.ytdlp.getInfo(url, {
+                cookies: this.cookiesPath
+            });
             return {
                 name: info.title,
                 url: info.webpage_url,
@@ -50,38 +113,6 @@ class MyCustomExtractor extends ExtractorPlugin {
                 : null;
         } catch (error) {
             console.error('Error searching for video:', error);
-            throw error;
-        }
-    }
-
-    async searchRelated(query, limit = 5) {
-        console.log(`Searching for related videos for query: ${query}`);
-        try {
-            // Primeiro, busca o vídeo relacionado com a consulta inicial
-            const initialResults = await ytsr(query, { limit: 1 });
-            const initialVideo = initialResults.items.find((item) => item.type === 'video');
-            if (!initialVideo) {
-                throw new Error('No initial video found for related search');
-            }
-
-            // Extrair palavras-chave mais relevantes do título ou descrição
-            const keywords = initialVideo.title.split(' ').slice(0, 3).join(' '); // Exemplo: usa as primeiras 3 palavras do título
-
-            // Consulta mais refinada usando palavras-chave extraídas
-            const refinedQuery = `${keywords} genre`;
-
-            // Buscar vídeos com base na consulta refinada
-            const relatedResults = await ytsr(refinedQuery, { limit });
-            return relatedResults.items
-                .filter((item) => item.type === 'video' && item.url !== initialVideo.url) // Evita duplicar o vídeo inicial
-                .map((video) => ({
-                    name: video.title,
-                    url: video.url,
-                    thumbnail: video.thumbnail,
-                    duration: null, // Duração pode ser obtida adicionalmente com yt-dlp se necessário
-                }));
-        } catch (error) {
-            console.error('Error searching for related videos:', error);
             throw error;
         }
     }
