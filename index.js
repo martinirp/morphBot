@@ -7,7 +7,7 @@ const ffmpeg = require('ffmpeg-static');
 // Load dotenv variables
 require('dotenv').config();
 
-const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY, OAUTH2_CLIENT_ID, OAUTH2_CLIENT_SECRET, YOUTUBE_API_KEY } = process.env;
+const { token, COOKIE_FILE_PATH, YTDL_USER_AGENT, YTDL_PROXY } = process.env;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Log the cookie file path for verification
@@ -39,18 +39,14 @@ registerSlashCommands(client);
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { DisTube } = require('distube');
 
-// Configure DisTube with cookie path from .env and OAuth2, plus API Key
+// Configure cookies and headers
 const ytDlpOptions = {
     cookieFile: COOKIE_FILE_PATH, // Set the cookie file path here
-    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36', // Custom User-Agent
+    userAgent: YTDL_USER_AGENT || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
     proxy: YTDL_PROXY || '', // Set the proxy if provided in .env
-    oauth2: {
-        clientId: OAUTH2_CLIENT_ID,  // OAuth2 Client ID
-        clientSecret: OAUTH2_CLIENT_SECRET, // OAuth2 Client Secret
+    headers: {
+        referer: 'https://www.youtube.com/', // Referer to mimic browser
     },
-    youtube: {
-        apiKey: YOUTUBE_API_KEY, // Pass the YouTube API Key here
-    }
 };
 
 if (isDockerDeploy) {
