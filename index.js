@@ -1,5 +1,6 @@
 // Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const { spawn } = require('child_process');
 
 // Get FFmpeg path from node_modules
 const ffmpeg = require('ffmpeg-static');
@@ -7,7 +8,7 @@ const ffmpeg = require('ffmpeg-static');
 // Load dotenv variables
 require('dotenv').config();
 
-const { token } = process.env.DISCORD_TOKEN;
+const token = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Create a new client instance
@@ -22,7 +23,6 @@ const client = new Client({
 
 client.commands = new Collection();
 client.aliases = new Collection();
-
 client.slashCommands = new Collection();
 
 // Register prefix commands
@@ -41,45 +41,46 @@ const { Lavalink } = require('@distube/lavalink');
 
 // Configuração do Lavalink
 const lavalinkOptions = {
-  host: 'localhost',  // Endereço do servidor Lavalink
-  port: 2333,         // Porta padrão do Lavalink
+  host: 'localhost', // Endereço do servidor Lavalink
+  port: 2333,        // Porta padrão do Lavalink
   password: 'youshallnotpass', // Senha configurada no seu Lavalink
 };
 
-if (isDockerDeploy) {
-  client.distube = new DisTube(client, {
-    emitNewSongOnly: true,
-    emitAddSongWhenCreatingQueue: false,
-    emitAddListWhenCreatingQueue: false,
-    savePreviousSongs: true,
-    nsfw: true,
-    plugins: [
-      // Configurando Lavalink para Docker
-      new Lavalink(lavalinkOptions),
-    ],
+// Inicia o servidor Lavalink localmente (não-Docker)
+if (!isDockerDeploy) {
+  console.log('Starting Lavalink server...');
+  const lavalinkProcess = spawn('java', ['-jar', 'Lavalink.jar'], {
+    cwd: './lavalink', // Substitua pelo caminho da pasta onde está o Lavalink.jar
+    stdio: 'inherit',
   });
-} else {
-  client.distube = new DisTube(client, {
-    emitNewSongOnly: true,
-    emitAddSongWhenCreatingQueue: false,
-    emitAddListWhenCreatingQueue: false,
-    savePreviousSongs: true,
-    nsfw: true,
-    plugins: [
-      // Configurando Lavalink para ambiente não-Docker
-      new Lavalink(lavalinkOptions),
-    ],
-    ffmpeg: {
-      path: ffmpeg,
-    },
+
+  lavalinkProcess.on('error', (err) => {
+    console.error('Failed to start Lavalink:', err);
+    process.exit(1);
+  });
+
+  lavalinkProcess.on('close', (code) => {
+    console.log(`Lavalink process exited with code ${code}`);
+    process.exit(code);
   });
 }
 
-// Quando o cliente estiver pronto, inicie o bot e o Lavalink
+client.distube = new DisTube(client, {
+  emitNewSongOnly: true,
+  emitAddSongWhenCreatingQueue: false,
+  emitAddListWhenCreatingQueue: false,
+  savePreviousSongs: true,
+  nsfw: true,
+  plugins: [
+    new Lavalink(lavalinkOptions),
+  ],
+  ...(isDockerDeploy ? {} : { ffmpeg: { path: ffmpeg } }),
+});
+
+// Quando o cliente estiver pronto, inicie o bot
 client.once(Events.ClientReady, (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
-  
-  // Inicia o Lavalink (se não estiver em Docker, por exemplo)
+
   client.distube.on('connect', (queue) => {
     console.log(`Connected to Lavalink for: ${queue.guild.name}`);
   });
