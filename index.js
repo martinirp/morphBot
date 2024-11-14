@@ -65,27 +65,17 @@ if (!isDockerDeploy) {
   });
 }
 
-// Inicialização do DisTube com suporte ao Lavalink
-const { DisTube } = require('distube');
-const { LavalinkPlugin } = require('@distube/lavalink');
-
+// Inicialização do DisTube com suporte ao Lavalink (sem o plugin adicional)
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
-  plugins: [
-    new LavalinkPlugin({
-      nodes: [
-        {
-          host: 'localhost',
-          port: 2333,
-          password: 'youshallnotpass',
-        },
-      ],
-    }),
-  ],
+  // Não é mais necessário o LavalinkPlugin, pois a versão 5.x do DisTube já possui suporte nativo
+  lavalink: {
+    nodes: lavalinkNodes,
+  },
 });
 
 // Quando o cliente estiver pronto, inicie o bot
