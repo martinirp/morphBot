@@ -2,6 +2,7 @@ const { ExtractorPlugin } = require('distube');
 const ytsr = require('@distube/ytsr');
 const ytdlp = require('@distube/yt-dlp');
 const fs = require('fs');
+const { google } = require('googleapis');
 require('dotenv').config(); // Carrega as variáveis do .env
 
 class MyCustomExtractor extends ExtractorPlugin {
@@ -11,9 +12,53 @@ class MyCustomExtractor extends ExtractorPlugin {
     this.ytsr = ytsr;
     
     // Carrega os cookies do arquivo e os converte para string
-    this.cookies = fs.readFileSync(process.env.YOUTUBE_COOKIES, 'utf8');
+    this.cookies = fs.readFileSync(process.env.YOUTUBE_COOKIES, 'utf8').toString();
     
+    // Inicializa o OAuth2 Client com as credenciais
+    this.oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
     console.log('MyCustomExtractor initialized');
+  }
+
+  // Função para gerar a URL de autorização do Google OAuth2
+  generateAuthUrl() {
+    const SCOPES = ['https://www.googleapis.com/auth/youtube.readonly'];
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline', // Para obter um token de atualização
+      scope: SCOPES,
+    });
+  }
+
+  // Função para trocar o código de autorização por tokens de acesso
+  async getAccessToken(code) {
+    try {
+      const { tokens } = await this.oauth2Client.getToken(code);
+      this.oauth2Client.setCredentials(tokens);
+      // Salve os tokens em um arquivo para usar mais tarde, se necessário
+      fs.writeFileSync('tokens.json', JSON.stringify(tokens));
+      console.log('Tokens obtidos com sucesso');
+      return tokens;
+    } catch (error) {
+      console.error('Erro ao trocar o código por tokens:', error);
+      throw error;
+    }
+  }
+
+  // Função para obter o token de acesso armazenado no arquivo
+  async getStoredToken() {
+    try {
+      const tokens = JSON.parse(fs.readFileSync('tokens.json', 'utf8'));
+      this.oauth2Client.setCredentials(tokens);
+      console.log('Tokens carregados do arquivo');
+      return tokens;
+    } catch (error) {
+      console.error('Erro ao carregar os tokens armazenados:', error);
+      throw error;
+    }
   }
 
   async validate(url) {
@@ -86,6 +131,22 @@ class MyCustomExtractor extends ExtractorPlugin {
     } else {
       console.log('Query is not a URL, performing search');
       return await this.search(query);
+    }
+  }
+
+  // Função para acessar a API do YouTube com OAuth2
+  async accessYouTubeAPI() {
+    try {
+      const youtube = google.youtube({ version: 'v3', auth: this.oauth2Client });
+      const response = await youtube.channels.list({
+        part: 'snippet,contentDetails,statistics',
+        mine: true,
+      });
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao acessar dados do YouTube:', error);
+      throw error;
     }
   }
 }
