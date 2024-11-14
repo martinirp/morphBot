@@ -1,93 +1,122 @@
-const { ExtractorPlugin } = require('distube');
-const ytdlp = require('@distube/yt-dlp');  // Usado para obter áudio dos vídeos do YouTube
-const { google } = require('googleapis');
-const fs = require('fs');
-require('dotenv').config(); // Carrega as variáveis do .env
+const ytdl = require('ytdl-core');
+const ffmpeg = require('ffmpeg-static');  // Utilizando o ffmpeg estático para processamento de áudio
+const { createAudioResource, AudioPlayerStatus, createAudioPlayer } = require('@discordjs/voice');
+const { exec } = require('child_process');  // Para executar o ffmpeg
 
-class MyCustomExtractor extends ExtractorPlugin {
-  constructor(options) {
-    super(options);
-    this.ytdlp = ytdlp;
-
-    // Carrega os cookies do arquivo e os converte para string
-    this.cookies = fs.readFileSync(process.env.YOUTUBE_COOKIES, 'utf8').toString();
-    
-    // Inicializa o OAuth2 Client com as credenciais
-    this.oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-
-    console.log('MyCustomExtractor initialized');
-  }
-
-  // Função para validar a URL
-  async validate(url) {
-    return url.startsWith('https://www.youtube.com') || url.startsWith('https://youtu.be');
-  }
-
-  // Função de extração para pegar o áudio do vídeo
-  async extract(url) {
-    console.log(`Extracting audio from URL: ${url}`);
-    try {
-      const info = await this.ytdlp.getInfo(url, {
-        username: process.env.YOUTUBE_USERNAME,  // Usar o login se necessário
-        password: process.env.YOUTUBE_PASSWORD,  // Usar a senha se necessário
-        ytdlpArgs: [
-          '--cookies-from-string', this.cookies, // Passa os cookies
-          '--no-check-certificate',  // Ignora verificação do certificado
-          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          '--proxy', process.env.PROXY_URL,  // Usar proxy se necessário
-        ],
-      });
-
-      return {
-        name: info.title,
-        url: info.webpage_url,
-        audioUrl: info.formats.find(f => f.acodec === 'mp4a.40.2' || f.acodec === 'vorbis').url,  // Pegando o URL do áudio
-        duration: info.duration,
-      };
-    } catch (error) {
-      console.error('Error extracting audio:', error);
-      throw error;
+class MyCustomExtractor {
+    constructor(options) {
+        console.log('MyCustomExtractor initialized');
     }
-  }
 
-  // Pesquisa se a query é válida ou busca no YouTube
-  async resolve(query) {
-    if (await this.validate(query)) {
-      return {
-        name: query,
-        url: query,
-        audioUrl: query,  // Retorna a URL do vídeo para o comando play
-        duration: null,
-      };
-    } else {
-      return await this.search(query);  // Caso não seja URL, realiza a pesquisa
+    // Valida se o link fornecido é uma URL do YouTube válida
+    async validate(url) {
+        console.log(`Validating URL: ${url}`);
+        const isValid =
+            url.startsWith('https://') &&
+            (url.includes('youtube.com') || url.includes('youtu.be'));
+        return isValid;
     }
-  }
 
-  async search(query) {
-    console.log(`Searching for query: ${query}`);
-    try {
-      const results = await ytsr(query, { limit: 1 });
-      const video = results.items.find(item => item.type === 'video');
-
-      if (!video) return null;
-
-      return {
-        name: video.name,
-        author: video.author.name,
-        url: video.url,
-        audioUrl: video.url, // Retorna o URL do áudio para o comando play
-        duration: null,
-      };
-    } catch (error) {
-      console.error('Error searching for video:', error);
-      throw error;
+    // Extrai informações de vídeo a partir do URL fornecido
+    async extract(url) {
+        console.log(`Extracting from URL: ${url}`);
+        try {
+            const info = await ytdl.getInfo(url);
+            return {
+                name: info.videoDetails.title,  // Nome do vídeo
+                url: info.videoDetails.video_url,  // URL do vídeo
+                thumbnail: info.videoDetails.thumbnails[0].url,  // Thumbnail do vídeo
+                duration: info.videoDetails.lengthSeconds,  // Duração do vídeo em segundos
+            };
+        } catch (error) {
+            console.error('Error extracting info:', error);
+            throw error;
+        }
     }
-  }
+
+    // Realiza uma busca no YouTube usando a query fornecida
+    async search(query) {
+        console.log(`Searching for query: ${query}`);
+        try {
+            const info = await ytdl.getInfo(query);  // Pode ser URL ou um termo de pesquisa
+            const video = {
+                name: info.videoDetails.title,
+                author: info.videoDetails.ownerChannelName,
+                url: info.videoDetails.video_url,
+                thumbnail: info.videoDetails.thumbnails[0].url,
+                duration: info.videoDetails.lengthSeconds,
+            };
+            return video;
+        } catch (error) {
+            console.error('Error searching for video:', error);
+            throw error;
+        }
+    }
+
+    // Resolve se é uma URL válida ou realiza uma busca
+    async resolve(query) {
+        console.log(`Resolving query: ${query}`);
+
+        if (await this.validate(query)) {
+            console.log('Query is a valid URL');
+            const info = await this.extract(query);
+            return {
+                name: info.name,
+                url: info.url,
+                thumbnail: info.thumbnail,
+                duration: info.duration,
+            };
+        } else {
+            console.log('Query is not a URL, performing search');
+            return await this.search(query);
+        }
+    }
+
+    // Cria um áudio stream para o Discord usando o ffmpeg e ytdl-core
+    async createAudioStream(url) {
+        // Usar ytdl-core para pegar o áudio do vídeo
+        const stream = ytdl(url, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+        });
+
+        // Usar o ffmpeg para processar o stream de áudio
+        const audioStream = exec(
+            `${ffmpeg} -i pipe:0 -f opus -ac 2 -ar 48000 -c:a libopus pipe:1`,
+            { input: stream },
+            (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Error during ffmpeg execution:', error);
+                }
+                if (stderr) {
+                    console.error('ffmpeg stderr:', stderr);
+                }
+            }
+        );
+
+        // Criar o audio resource do Discord com o stream processado
+        const audioResource = createAudioResource(audioStream.stdout, {
+            inputType: AudioPlayerStatus.Playing,
+        });
+
+        return audioResource;
+    }
+
+    // Função para tocar áudio no canal de voz
+    async playAudioInVoiceChannel(connection, url) {
+        const audioResource = await this.createAudioStream(url);
+        const audioPlayer = createAudioPlayer();
+        connection.subscribe(audioPlayer);
+        audioPlayer.play(audioResource);
+
+        audioPlayer.on(AudioPlayerStatus.Idle, () => {
+            console.log('Audio finished playing.');
+        });
+
+        audioPlayer.on('error', (error) => {
+            console.error('AudioPlayer error:', error);
+        });
+    }
 }
 
 module.exports = MyCustomExtractor;
