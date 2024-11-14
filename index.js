@@ -41,18 +41,10 @@ client.distube = new DisTube(client, {
     emitAddListWhenCreatingQueue: false,
     savePreviousSongs: true,
     nsfw: true,
-    customYTDL: (url) =>
-        ytdl(url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            preferFreeFormats: true,
-            format: "bestaudio",
-        }),
     ffmpeg: {
         path: ffmpeg,
     },
 });
-
 
 // Quando o cliente estiver pronto, executar este código (apenas uma vez)
 client.once(Events.ClientReady, (c) => {
