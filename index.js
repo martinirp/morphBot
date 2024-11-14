@@ -49,9 +49,10 @@ const lavalinkNodes = [
 // Inicia o servidor Lavalink localmente (não-Docker)
 if (!isDockerDeploy) {
   console.log('Starting Lavalink server...');
+
+  // Agora vamos remover o 'cwd' e usar o caminho correto para o arquivo Lavalink.jar
   const lavalinkProcess = spawn('java', ['-jar', 'Lavalink.jar'], {
-    cwd: './lavalink', // Substitua pelo caminho da pasta onde está o Lavalink.jar
-    stdio: 'inherit',
+    stdio: 'inherit', // Executa o processo diretamente na raiz
   });
 
   lavalinkProcess.on('error', (err) => {
@@ -65,16 +66,26 @@ if (!isDockerDeploy) {
   });
 }
 
-// Inicialização do DisTube com suporte ao Lavalink (sem o plugin adicional)
+// Inicialização do DisTube com suporte ao Lavalink
+const { LavalinkPlugin } = require('@distube/lavalink');
+
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
-  // Remover a chave `lavalink` aqui
-  // A configuração do Lavalink é gerenciada automaticamente no DisTube v5.x
-  // Os nós do Lavalink são configurados diretamente ao conectar o servidor
+  plugins: [
+    new LavalinkPlugin({
+      nodes: [
+        {
+          host: 'localhost',
+          port: 2333,
+          password: 'youshallnotpass',
+        },
+      ],
+    }),
+  ],
 });
 
 // Quando o cliente estiver pronto, inicie o bot
