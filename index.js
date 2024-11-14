@@ -1,15 +1,13 @@
 // Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 const { spawn } = require('child_process');
-
-// Get FFmpeg path from node_modules
-const ffmpeg = require('ffmpeg-static');
+const ytdl = require('ytdl-core'); // Para pegar o áudio do YouTube
+const ffmpeg = require('ffmpeg-static'); // Para manipular o áudio com ffmpeg
 
 // Load dotenv variables
 require('dotenv').config();
 
 const token = process.env.DISCORD_TOKEN;
-const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
 // Create a new client instance
 const client = new Client({
@@ -33,63 +31,39 @@ registerCommands(client);
 const registerSlashCommands = require('./registers/slash-commands-register');
 registerSlashCommands(client);
 
-// DISTUBE (com suporte nativo ao Lavalink)
-const { DisTube } = require('distube');
-const { LavalinkPlugin } = require('@distube/lavalink');
-
-// Configuração do Lavalink
-const lavalinkNodes = [
-  {
-    host: 'localhost',   // Endereço do servidor Lavalink
-    port: 2333,          // Porta padrão do Lavalink
-    password: 'youshallnotpass', // Senha configurada no seu Lavalink
-    secure: false,       // False se não estiver usando HTTPS
-  },
-];
-
-// Inicializa o servidor Lavalink a partir da pasta correta
-if (!isDockerDeploy) {
-  console.log('Starting Lavalink server...');
-  const lavalinkProcess = spawn('java', ['-jar', '/home/ubuntu/lavalink/Lavalink.jar'], {
-    cwd: '/home/ubuntu/lavalink', // Diretório onde o Lavalink.jar está localizado
-    stdio: 'inherit',
-  });
-
-  lavalinkProcess.on('error', (err) => {
-    console.error('Failed to start Lavalink:', err);
-    process.exit(1);
-  });
-
-  lavalinkProcess.on('close', (code) => {
-    console.log(`Lavalink process exited with code ${code}`);
-    process.exit(code);
-  });
-}
-
-// Inicialização do DisTube
-client.distube = new DisTube(client, {
-  emitNewSongOnly: true,
-  emitAddSongWhenCreatingQueue: false,
-  emitAddListWhenCreatingQueue: false,
-  savePreviousSongs: true,
-  nsfw: true,
-});
-
-// Adicionar o plugin Lavalink ao DisTube
-client.distube.plugins.push(
-  new LavalinkPlugin({
-    nodes: lavalinkNodes, // Passando a configuração do Lavalink diretamente aqui
-  })
-);
-
 // Quando o cliente estiver pronto, inicie o bot
 client.once(Events.ClientReady, (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
-
-  client.distube.on('connect', (queue) => {
-    console.log(`Connected to Lavalink for: ${queue.guild.name}`);
-  });
 });
+
+// Função para tocar música com ffmpeg
+const playWithFFmpeg = async (message, url) => {
+  // Verifica se o usuário está em um canal de voz
+  if (!message.member.voice.channel) {
+    return message.channel.send('You need to join a voice channel first!');
+  }
+
+  // Conecta no canal de voz
+  const connection = await message.member.voice.channel.join();
+
+  // Obtém o stream de áudio do YouTube
+  const stream = ytdl(url, { filter: 'audioonly' });
+
+  // Cria um processo ffmpeg para converter o áudio
+  const audio = connection.play(stream.pipe(ffmpeg(), { seek: 0, volume: 1 }));
+
+  audio.on('finish', () => {
+    console.log('Audio finished playing!');
+    connection.disconnect();
+  });
+
+  audio.on('error', (error) => {
+    console.error('Error playing audio:', error);
+    connection.disconnect();
+  });
+
+  message.channel.send('Now playing the requested song!');
+};
 
 // Exemplo de interação para comandos de prefixo
 client.on('messageCreate', async (message) => {
@@ -100,25 +74,17 @@ client.on('messageCreate', async (message) => {
   if (!message.content.startsWith(prefix)) return;
 
   const args = message.content.slice(prefix.length).trim().split(/ +/g);
-  const commandTyped = args.shift().toLowerCase();
+  const command = args.shift().toLowerCase();
 
-  const cmd =
-    client.commands.get(commandTyped) ||
-    client.commands.get(client.aliases.get(commandTyped));
+  if (command === 'play') {
+    // Pega o URL do YouTube
+    const url = args[0];
+    if (!ytdl.validateURL(url)) {
+      return message.channel.send('Please provide a valid YouTube URL.');
+    }
 
-  if (!cmd) return;
-
-  if (cmd.inVoiceChannel && !message.member.voice.channel) {
-    return message.channel.send(
-      `${client.error} | You must be in a voice channel!`
-    );
-  }
-
-  try {
-    await cmd.execute(message, client, args);
-  } catch (e) {
-    console.error(e);
-    message.channel.send(`${client.emotes.error} | Error: \`${e}\``);
+    // Chama a função que vai tocar a música
+    await playWithFFmpeg(message, url);
   }
 });
 
