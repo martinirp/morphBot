@@ -1,20 +1,17 @@
-const MyCustomExtractor = require('./../myCustomExtractor');
+const ytdl = require('ytdl-core');  // Adicionando o ytdl-core
 const { Client, Message } = require('discord.js');
+const path = require('path');
+const fs = require('fs');
 
 // Caminho para o arquivo links.txt
-const path = require('path');
 const filePath = path.join(__dirname, '..', 'data', 'links.txt');
 
 // Função para salvar o link no arquivo
 function saveLink(link) {
-    const fs = require('fs');
     try {
-        // Verifica se o arquivo existe
         if (!fs.existsSync(filePath)) {
-            // Se não existir, cria um arquivo vazio
             fs.writeFileSync(filePath, '', 'utf8');
         }
-        // Adiciona o link ao arquivo
         fs.appendFileSync(filePath, link + '\n', 'utf8');
         console.log(`Link adicionado ao arquivo TXT: ${link}`);
     } catch (error) {
@@ -45,16 +42,14 @@ module.exports = {
                 message.channel.send(`Coe ${message.author.displayName}, vou tocar esse link`);
             }
         } else {
-            // Caso não seja um link, utiliza o MyCustomExtractor para resolver o nome
-            const teste = new MyCustomExtractor();
-            const resolved = await teste.resolve(string);
-
-            if (!resolved || !resolved.url) {
-                return message.channel.send('Achei bosta!');
+            // Caso não seja um link, usamos o ytdl-core para buscar a URL
+            try {
+                const info = await ytdl.getInfo(string);  // Resolve o link a partir da pesquisa
+                url = info.video_url;  // Pega a URL do vídeo
+                message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
+            } catch (error) {
+                return message.channel.send('Não consegui encontrar esse vídeo!');
             }
-
-            url = resolved.url;
-            message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
         }
 
         console.log(`Tentando tocar o link: ${url}`);

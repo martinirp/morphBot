@@ -1,18 +1,15 @@
 const { ExtractorPlugin } = require('distube');
-const ytsr = require('ytsr'); // Para busca no YouTube
-// Supondo que o novo extrator seja algo como "newExtractor"
-const newExtractor = require('new-extractor');  // Altere para o nome do seu novo extrator
+const ytdl = require('ytdl-core');  // Usando ytdl-core para pegar as informações do vídeo
 
 class MyCustomExtractor extends ExtractorPlugin {
     constructor(options) {
         super(options);
-        this.newExtractor = newExtractor;  // Usando o novo extrator
-        this.ytsr = ytsr;
         console.log('MyCustomExtractor initialized');
     }
 
     async validate(url) {
         console.log(`Validating URL: ${url}`);
+        // Validando se a URL é do YouTube
         return (
             url.startsWith('https://') ||
             url.includes('youtube.com') ||
@@ -23,17 +20,17 @@ class MyCustomExtractor extends ExtractorPlugin {
     async extract(url) {
         console.log(`Extracting from URL: ${url}`);
         try {
-            // Usando o novo extrator para obter informações do vídeo
-            const info = await this.newExtractor.getInfo(url);  // Substitua conforme o novo extrator
+            // Usando ytdl-core para obter as informações do vídeo
+            const info = await ytdl.getInfo(url);
 
             // Garantir que a URL retornada seja a do YouTube
-            const videoUrl = info.webpage_url || info.url || url;  // Garante que seja uma URL do YouTube
+            const videoUrl = info.video_url || url;  // Se não encontrar a URL específica, usa a URL original
 
             return {
-                name: info.title,
-                url: videoUrl,  // Garantir que o DisTube receba uma URL válida do YouTube
-                thumbnail: info.thumbnail,
-                duration: info.duration,
+                name: info.videoDetails.title,  // Título do vídeo
+                url: videoUrl,  // URL do vídeo
+                thumbnail: info.videoDetails.thumbnails[0].url,  // Primeira miniatura do vídeo
+                duration: info.videoDetails.lengthSeconds,  // Duração do vídeo em segundos
             };
         } catch (error) {
             console.error('Error extracting info:', error);
@@ -44,14 +41,15 @@ class MyCustomExtractor extends ExtractorPlugin {
     async search(query) {
         console.log(`Searching for query: ${query}`);
         try {
-            const results = await ytsr(query, { limit: 1 });
-            const video = results.items.find((item) => item.type === 'video');
+            // Utiliza o ytdl-core para buscar o vídeo do YouTube
+            const results = await ytdl.search(query, { limit: 1 });
+            const video = results[0];
             return video
                 ? {
                     name: video.title,
                     url: video.url,
                     thumbnail: video.thumbnail,
-                    duration: null, // Duração pode ser obtida adicionalmente com o novo extrator se necessário
+                    duration: video.duration,  // Duração obtida da busca
                 }
                 : null;
         } catch (error) {
@@ -63,28 +61,22 @@ class MyCustomExtractor extends ExtractorPlugin {
     async searchRelated(query, limit = 5) {
         console.log(`Searching for related videos for query: ${query}`);
         try {
-            // Primeiro, busca o vídeo relacionado com a consulta inicial
-            const initialResults = await ytsr(query, { limit: 1 });
-            const initialVideo = initialResults.items.find((item) => item.type === 'video');
+            // Realiza a busca inicial
+            const initialResults = await ytdl.search(query, { limit: 1 });
+            const initialVideo = initialResults[0];
             if (!initialVideo) {
                 throw new Error('No initial video found for related search');
             }
 
-            // Extrair palavras-chave mais relevantes do título ou descrição
-            const keywords = initialVideo.title.split(' ').slice(0, 3).join(' '); // Exemplo: usa as primeiras 3 palavras do título
-
-            // Consulta mais refinada usando palavras-chave extraídas
-            const refinedQuery = `${keywords} genre`;
-
-            // Buscar vídeos com base na consulta refinada
-            const relatedResults = await ytsr(refinedQuery, { limit });
-            return relatedResults.items
-                .filter((item) => item.type === 'video' && item.url !== initialVideo.url) // Evita duplicar o vídeo inicial
+            // Buscar vídeos relacionados com base na consulta refinada (aqui usamos o mesmo título, mas pode ser ajustado)
+            const relatedResults = await ytdl.search(`${initialVideo.title} related`, { limit });
+            return relatedResults
+                .filter((video) => video.url !== initialVideo.url)  // Excluir o vídeo inicial dos relacionados
                 .map((video) => ({
                     name: video.title,
                     url: video.url,
                     thumbnail: video.thumbnail,
-                    duration: null, // Duração pode ser obtida adicionalmente com o novo extrator se necessário
+                    duration: video.duration,
                 }));
         } catch (error) {
             console.error('Error searching for related videos:', error);
