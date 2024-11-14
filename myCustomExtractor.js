@@ -1,11 +1,12 @@
 const { ExtractorPlugin } = require('distube');
-const ytsr = require('ytsr');
-const ytdlp = require('@distube/yt-dlp');
+const ytsr = require('ytsr'); // Para busca no YouTube
+// Supondo que o novo extrator seja algo como "newExtractor"
+const newExtractor = require('new-extractor');  // Altere para o nome do seu novo extrator
 
 class MyCustomExtractor extends ExtractorPlugin {
     constructor(options) {
         super(options);
-        this.ytdlp = ytdlp;
+        this.newExtractor = newExtractor;  // Usando o novo extrator
         this.ytsr = ytsr;
         console.log('MyCustomExtractor initialized');
     }
@@ -22,10 +23,11 @@ class MyCustomExtractor extends ExtractorPlugin {
     async extract(url) {
         console.log(`Extracting from URL: ${url}`);
         try {
-            const info = await this.ytdlp.getInfo(url);  // Ou o novo extrator
+            // Usando o novo extrator para obter informações do vídeo
+            const info = await this.newExtractor.getInfo(url);  // Substitua conforme o novo extrator
 
-            // Se o extrator não retorna a URL do vídeo diretamente, force o retorno da URL correta do YouTube
-            const videoUrl = info.webpage_url || info.url || url;  // Garante que seja a URL do YouTube
+            // Garantir que a URL retornada seja a do YouTube
+            const videoUrl = info.webpage_url || info.url || url;  // Garante que seja uma URL do YouTube
 
             return {
                 name: info.title,
@@ -49,7 +51,7 @@ class MyCustomExtractor extends ExtractorPlugin {
                     name: video.title,
                     url: video.url,
                     thumbnail: video.thumbnail,
-                    duration: null, // Duração pode ser obtida adicionalmente com yt-dlp se necessário
+                    duration: null, // Duração pode ser obtida adicionalmente com o novo extrator se necessário
                 }
                 : null;
         } catch (error) {
@@ -82,7 +84,7 @@ class MyCustomExtractor extends ExtractorPlugin {
                     name: video.title,
                     url: video.url,
                     thumbnail: video.thumbnail,
-                    duration: null, // Duração pode ser obtida adicionalmente com yt-dlp se necessário
+                    duration: null, // Duração pode ser obtida adicionalmente com o novo extrator se necessário
                 }));
         } catch (error) {
             console.error('Error searching for related videos:', error);
