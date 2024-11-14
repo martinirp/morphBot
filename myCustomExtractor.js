@@ -26,6 +26,8 @@ class MyCustomExtractor extends ExtractorPlugin {
 		console.log(`Extracting from URL: ${url}`);
 		try {
 			const info = await this.ytdlp.getInfo(url, {
+				username: process.env.YOUTUBE_USERNAME,
+				password: process.env.YOUTUBE_PASSWORD,
 				ytdlpArgs: [
 					'--cookies-from-string',
 					this.cookies, // Passa os cookies diretamente
