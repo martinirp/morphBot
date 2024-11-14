@@ -10,6 +10,10 @@ require('dotenv').config();
 const { token } = process.env.DISCORD_TOKEN;
 const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
 
+// Carregar DisTube e YtDlpPlugin
+const { DisTube } = require('distube');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
+
 // Criar uma nova instância do cliente
 const client = new Client({
     intents: [
@@ -61,7 +65,7 @@ if (isDockerDeploy) {
             new YtDlpPlugin(),
         ],
         ffmpeg: {
-            path: ffmpeg,
+            path: ffmpeg,  // Caminho para o ffmpeg se não estiver no Docker
         },
     });
 }
