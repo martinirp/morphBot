@@ -33,18 +33,18 @@ registerCommands(client);
 const registerSlashCommands = require('./registers/slash-commands-register');
 registerSlashCommands(client);
 
-// DISTUBE (com Lavalink)
-
-// Importa a biblioteca Lavalink e o DisTube
+// DISTUBE (com suporte nativo ao Lavalink)
 const { DisTube } = require('distube');
-const { Lavalink } = require('@distube/lavalink');
 
 // Configuração do Lavalink
-const lavalinkOptions = {
-  host: 'localhost', // Endereço do servidor Lavalink
-  port: 2333,        // Porta padrão do Lavalink
-  password: 'youshallnotpass', // Senha configurada no seu Lavalink
-};
+const lavalinkNodes = [
+  {
+    host: 'localhost',   // Endereço do servidor Lavalink
+    port: 2333,          // Porta padrão do Lavalink
+    password: 'youshallnotpass', // Senha configurada no seu Lavalink
+    secure: false,       // False se não estiver usando HTTPS
+  },
+];
 
 // Inicia o servidor Lavalink localmente (não-Docker)
 if (!isDockerDeploy) {
@@ -65,14 +65,29 @@ if (!isDockerDeploy) {
   });
 }
 
+// Inicialização do DisTube com suporte ao Lavalink
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
+  customFilters: { 
+    bassboost: "bass=g=20", 
+    "8D": "apulsator=hz=0.08", 
+    vaporwave: "aresample=48000,asetrate=48000*0.8",
+    nightcore: "aresample=48000,asetrate=48000*1.25",
+  },
+  ytdlOptions: {
+    filter: 'audioonly',
+    quality: 'highestaudio',
+    highWaterMark: 1 << 25,
+  },
   plugins: [
-    new Lavalink(lavalinkOptions),
+    {
+      type: "lavalink",
+      nodes: lavalinkNodes,
+    },
   ],
   ...(isDockerDeploy ? {} : { ffmpeg: { path: ffmpeg } }),
 });
