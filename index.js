@@ -35,6 +35,7 @@ registerSlashCommands(client);
 
 // DISTUBE (com suporte nativo ao Lavalink)
 const { DisTube } = require('distube');
+const { LavalinkPlugin } = require('@distube/lavalink');
 
 // Configuração do Lavalink
 const lavalinkNodes = [
@@ -65,15 +66,21 @@ if (!isDockerDeploy) {
   });
 }
 
-// Inicialização do DisTube com suporte ao Lavalink
+// Inicialização do DisTube
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
-  Lavalink: lavalinkNodes, // Passando a configuração do Lavalink diretamente para o DisTube
 });
+
+// Adicionar o plugin Lavalink ao DisTube
+client.distube.plugins.push(
+  new LavalinkPlugin({
+    nodes: lavalinkNodes, // Passando a configuração do Lavalink diretamente aqui
+  })
+);
 
 // Quando o cliente estiver pronto, inicie o bot
 client.once(Events.ClientReady, (c) => {
