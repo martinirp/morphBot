@@ -66,26 +66,28 @@ if (!isDockerDeploy) {
 }
 
 // Inicialização do DisTube com suporte ao Lavalink
+const { DisTube } = require('distube');
+const { LavalinkPlugin } = require('@distube/lavalink');
+
 client.distube = new DisTube(client, {
-	emitNewSongOnly: true,
-	emitAddSongWhenCreatingQueue: false,
-	emitAddListWhenCreatingQueue: false,
-	savePreviousSongs: true,
-	nsfw: true,
-	customFilters: { 
-	  bassboost: "bass=g=20", 
-	  "8D": "apulsator=hz=0.08", 
-	  vaporwave: "aresample=48000,asetrate=48000*0.8",
-	  nightcore: "aresample=48000,asetrate=48000*1.25",
-	},
-	plugins: [
-	  {
-		type: "lavalink",
-		nodes: lavalinkNodes,
-	  },
-	],
-  });
-  
+  emitNewSongOnly: true,
+  emitAddSongWhenCreatingQueue: false,
+  emitAddListWhenCreatingQueue: false,
+  savePreviousSongs: true,
+  nsfw: true,
+  plugins: [
+    new LavalinkPlugin({
+      nodes: [
+        {
+          host: 'localhost',
+          port: 2333,
+          password: 'youshallnotpass',
+        },
+      ],
+    }),
+  ],
+});
+
 // Quando o cliente estiver pronto, inicie o bot
 client.once(Events.ClientReady, (c) => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
