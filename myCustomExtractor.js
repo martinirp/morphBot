@@ -1,12 +1,14 @@
 const { ExtractorPlugin } = require('distube');
 const ytsr = require('@distube/ytsr');
 const ytdlp = require('@distube/yt-dlp');
+require('dotenv').config(); // Carrega as variáveis do .env
 
 class MyCustomExtractor extends ExtractorPlugin {
 	constructor(options) {
 		super(options);
 		this.ytdlp = ytdlp;
 		this.ytsr = ytsr;
+		this.cookies = process.env.YOUTUBE_COOKIES; // Lê os cookies do .env
 		console.log('MyCustomExtractor initialized');
 	}
 
@@ -21,7 +23,13 @@ class MyCustomExtractor extends ExtractorPlugin {
 	async extract(url) {
 		console.log(`Extracting from URL: ${url}`);
 		try {
-			const info = await this.ytdlp.getInfo(url);
+			// Passando os cookies lidos do .env diretamente
+			const info = await this.ytdlp.getInfo(url, {
+				ytdlpArgs: [
+					'--cookies-from-string',
+					this.cookies, // Passa os cookies diretamente
+				],
+			});
 			return {
 				name: info.title,
 				url: info.webpage_url,
