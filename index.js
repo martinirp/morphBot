@@ -48,44 +48,31 @@ const lavalinkNodes = [
 
 // Inicializa o servidor Lavalink a partir da pasta correta
 if (!isDockerDeploy) {
-	console.log('Starting Lavalink server...');
-	const lavalinkProcess = spawn('java', ['-jar', '/home/ubuntu/lavalink/Lavalink.jar'], {
-	  cwd: '/home/ubuntu/lavalink', // Diretório onde o Lavalink.jar está localizado
-	  stdio: 'inherit',
-	});
-  
-	lavalinkProcess.on('error', (err) => {
-	  console.error('Failed to start Lavalink:', err);
-	  process.exit(1);
-	});
-  
-	lavalinkProcess.on('close', (code) => {
-	  console.log(`Lavalink process exited with code ${code}`);
-	  process.exit(code);
-	});
-  }
-  
+  console.log('Starting Lavalink server...');
+  const lavalinkProcess = spawn('java', ['-jar', '/home/ubuntu/lavalink/Lavalink.jar'], {
+    cwd: '/home/ubuntu/lavalink', // Diretório onde o Lavalink.jar está localizado
+    stdio: 'inherit',
+  });
+
+  lavalinkProcess.on('error', (err) => {
+    console.error('Failed to start Lavalink:', err);
+    process.exit(1);
+  });
+
+  lavalinkProcess.on('close', (code) => {
+    console.log(`Lavalink process exited with code ${code}`);
+    process.exit(code);
+  });
+}
 
 // Inicialização do DisTube com suporte ao Lavalink
-const { LavalinkPlugin } = require('@distube/lavalink');
-
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   emitAddSongWhenCreatingQueue: false,
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
-  plugins: [
-    new LavalinkPlugin({
-      nodes: [
-        {
-          host: 'localhost',
-          port: 2333,
-          password: 'youshallnotpass',
-        },
-      ],
-    }),
-  ],
+  Lavalink: lavalinkNodes, // Passando a configuração do Lavalink diretamente para o DisTube
 });
 
 // Quando o cliente estiver pronto, inicie o bot
