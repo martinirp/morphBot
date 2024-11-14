@@ -34,6 +34,8 @@ class MyCustomExtractor extends ExtractorPlugin {
           '--cookies-from-string',
           this.cookies, // Passa os cookies diretamente
           '--no-check-certificate', // Adiciona o parâmetro para não verificar o certificado
+          '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', // Modifica o User-Agent
+          '--proxy', process.env.PROXY_URL, // Configura proxy se necessário
         ],
       });
       return {
