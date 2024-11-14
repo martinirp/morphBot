@@ -13,7 +13,7 @@ class MyCustomExtractor extends ExtractorPlugin {
         console.log(`Validating URL: ${url}`);
         return (
             url.startsWith('https://') &&
-            (url.includes('youtube.com/watch') || url.includes('youtu.be'))
+            (url.includes('youtube.com') || url.includes('youtu.be'))
         );
     }
 
@@ -26,11 +26,7 @@ class MyCustomExtractor extends ExtractorPlugin {
                 noWarnings: true,
                 format: 'best',
             });
-
-            if (!info || !info.title) {
-                throw new Error('Failed to extract video information');
-            }
-
+            console.log(`Info extraída: ${JSON.stringify(info)}`);
             return {
                 name: info.title,
                 url: info.webpage_url,
@@ -39,7 +35,7 @@ class MyCustomExtractor extends ExtractorPlugin {
             };
         } catch (error) {
             console.error('Error extracting info:', error);
-            throw new Error('Failed to extract video information from the URL');
+            throw error;
         }
     }
 
@@ -49,21 +45,21 @@ class MyCustomExtractor extends ExtractorPlugin {
         try {
             const results = await ytsr(query, { limit: 1 });
             const video = results.items.find((item) => item.type === 'video');
-
-            if (!video) {
-                console.error('No video found for query:', query);
+            if (video) {
+                console.log(`Video encontrado: ${video.url}`);
+                return {
+                    name: video.title,
+                    url: video.url,
+                    thumbnail: video.bestThumbnail.url,
+                    duration: null, // A duração pode ser obtida adicionalmente, se necessário
+                };
+            } else {
+                console.log('Nenhum vídeo encontrado');
                 return null;
             }
-
-            return {
-                name: video.title,
-                url: video.url,
-                thumbnail: video.bestThumbnail.url,
-                duration: null, // A duração pode ser obtida adicionalmente, se necessário
-            };
         } catch (error) {
             console.error('Error searching for video:', error);
-            throw new Error('Failed to search for the video');
+            throw error;
         }
     }
 
