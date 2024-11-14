@@ -1,6 +1,5 @@
 module.exports = {
 	name: 'skip',
-	description: 'pula a musica atual e avança para a próxima',
 	aliases: ['sk'],
 	inVoiceChannel: true,
 	execute: async (message, client) => {

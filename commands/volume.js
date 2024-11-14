@@ -1,6 +1,5 @@
 module.exports = {
 	name: 'volume',
-	description: 'altera o volume do bot',
 	aliases: ['vol'],
 	inVoiceChannel: true,
 	execute: async (message, client, args) => {
@@ -16,12 +15,8 @@ module.exports = {
 			return message.channel.send('Não tem nada na fila');
 		}
 
-		if (volume < 0 || volume > 100) {
-			return message.channel.send('Você quer me deixar surdo??');
-		}
-
-		if (volume < 10){
-			return message.channel.send('Tá baixo demais!');
+		if (volume < 0 || volume > 200) {
+			return message.channel.send('Calma la meu patrão');
 		}
 
 		client.distube.setVolume(message, volume);

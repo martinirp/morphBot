@@ -1,7 +1,6 @@
 module.exports = {
 	name: 'pause',
-	description: 'pausa o que está sendo tocado',
-	aliases: ['p'],
+	aliases: [],
 	inVoiceChannel: true,
 	execute: async (message, client) => {
 		const queue = client.distube.getQueue(message);

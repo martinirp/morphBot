@@ -1,70 +1,75 @@
-const ytdl = require('ytdl-core');  // Adicionando o ytdl-core
-const { Client, Message } = require('discord.js');
-const path = require('path');
+const { PlayOptions } = require('distube');
+
 const fs = require('fs');
+const path = require('path');
 
-// Caminho para o arquivo links.txt
-const filePath = path.join(__dirname, '..', 'data', 'links.txt');
-
-// Função para salvar o link no arquivo
-function saveLink(link) {
-    try {
-        if (!fs.existsSync(filePath)) {
-            fs.writeFileSync(filePath, '', 'utf8');
-        }
-        fs.appendFileSync(filePath, link + '\n', 'utf8');
-        console.log(`Link adicionado ao arquivo TXT: ${link}`);
-    } catch (error) {
-        console.error(`Erro ao salvar link: ${error}`);
-    }
-}
+const MyCustomExtractor = require('./../myCustomExtractor');
 
 module.exports = {
-    name: 'play',
-    description: 'Toca uma música ou um link indicado',
-    aliases: ['p'],
-    inVoiceChannel: true,
-    execute: async (message, client, args) => {
-        const string = args.join(' ');
-        if (!string) {
-            return message.channel.send('Não dá pra procurar nada desse jeito!');
-        }
+	name: 'play',
+	aliases: ['p'],
+	inVoiceChannel: true,
+	execute: async (message, client, args) => {
+		const nameOrLinkVideo = args.join(' ');
+		if (!nameOrLinkVideo) {
+			return message.channel.send(
+				'Entre com um valor válido para pesquisa.'
+			);
+		}
 
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|playlist\?|channel\/|user\/|c\/)?[A-Za-z0-9_-]+/;
-        let url;
+		const customExtractor = new MyCustomExtractor();
 
-        // Verifica se a string é um link do YouTube
-        if (string.startsWith('http')) {
-            if (!youtubeRegex.test(string)) {
-                return message.channel.send('Tá querendo me enganar? Isso não é um link do YouTube!');
-            } else {
-                url = string;
-                message.channel.send(`Coe ${message.author.displayName}, vou tocar esse link`);
-            }
-        } else {
-            // Caso não seja um link, usamos o ytdl-core para buscar a URL
-            try {
-                const info = await ytdl.getInfo(string);  // Resolve o link a partir da pesquisa
-                url = info.video_url;  // Pega a URL do vídeo
-                message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
-            } catch (error) {
-                return message.channel.send('Não consegui encontrar esse vídeo!');
-            }
-        }
+		let infoVideo = await customExtractor.resolve(nameOrLinkVideo);
 
-        console.log(`Tentando tocar o link: ${url}`);
+		if (!infoVideo) {
+			return message.channel.send('Vídeo não foi encontrado.');
+		}
 
-        // Tocar o link
-        client.distube.play(message.member.voice.channel, url, {
-            member: message.member,
-            textChannel: message.channel,
-            message,
-        });
+		message.channel.send(`To procurando aqui pae, pera ai...`);
 
-        // Chamar o comando save para armazenar o link
-        const saveCommand = client.commands.get('save');
-        if (saveCommand) {
-            saveCommand.execute(message, client, [url]);
-        }
-    },
+		client.distube
+			.play(message.member.voice.channel, infoVideo.url, {
+				member: message.member,
+				textChannel: message.channel,
+				message,
+				// metadata?: T;
+				// position
+				// skip
+			})
+			.then(() => {
+				message.channel.send(`Achei essa braba aqui ${infoVideo.url}`);
+
+				saveUrlToFile(infoVideo.url);
+			});
+	},
 };
+
+function saveUrlToFile(url) {
+	return new Promise((resolve, reject) => {
+		const filePath = path.join(__dirname, '..', 'playlist', 'videos.txt');
+
+		// Lê o conteúdo do arquivo existente
+		fs.readFile(filePath, 'utf8', (err, data) => {
+			if (err && err.code !== 'ENOENT') {
+				// Se o erro não for "arquivo não encontrado", rejeita a promise
+				return reject(err);
+			}
+
+			// Verifica se a URL já está presente no arquivo
+			const urls = data
+				? data.split('\n').map((line) => line.trim())
+				: [];
+			if (urls.includes(url)) {
+				return resolve(); // URL já existe, não faz nada
+			}
+
+			// Adiciona a URL ao arquivo
+			fs.appendFile(filePath, `${url}\n`, (err) => {
+				if (err) {
+					return reject(err);
+				}
+				resolve();
+			});
+		});
+	});
+}

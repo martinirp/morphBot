@@ -1,24 +1,36 @@
 module.exports = {
-    name: 'remove',
-    description: 'Remove uma música da fila pelo índice e exibe a fila atualizada',
-    aliases: ['r'],
-    execute: async (message, client, args) => {
-        const queue = client.distube.getQueue(message);
-        if (!queue) {
-            return message.channel.send('Não tem nada sendo reproduzido no momento!');
-        }
+	name: 'remove',
+	aliases: ['r'],
+	execute: async (message, client, args) => {
+		const index = +args;
 
-        const index = parseInt(args[0], 10);
-        if (isNaN(index) || index < 1 || index >= queue.songs.length) {
-            return message.channel.send('Por favor, forneça um índice válido.');
-        }
+		if (typeof index != 'number') {
+			return message.channel.send('Esse não é um índice válido');
+		}
 
-        // Remove a música da fila
-        const removedSong = queue.songs.splice(index, 1)[0];
-        message.channel.send(`Removido: **${removedSong.name}** da fila.`);
+		const queue = client.distube.getQueue(message);
 
-        // Executa o comando queue para mostrar a fila atualizada
-        const queueCommand = require('./queue');
-        queueCommand.execute(message, client);
-    },
+		if (!queue) {
+			return message.channel.send(
+				'Não tem nada sendo reproduzido no momento!'
+			);
+		}
+
+		if (!queue.songs.at(index)) {
+			return message.channel.send('Não tem uma música nesse indice');
+		}
+
+		queue.songs = queue.songs.splice(index, 1);
+
+		const q = queue.songs
+			.map(
+				(song, i) =>
+					`${i === 0 ? 'Playing:' : `${i}.`} ${song.name} - \`${
+						song.formattedDuration
+					}\``
+			)
+			.join('\n');
+
+		message.channel.send(`**Server Queue**\n${q}`);
+	},
 };

@@ -1,6 +1,5 @@
 module.exports = {
 	name: 'queue',
-	description: 'lista a playlist atual',
 	aliases: ['q'],
 	execute: async (message, client) => {
 		const queue = client.distube.getQueue(message);
