@@ -1,35 +1,35 @@
 const { ExtractorPlugin } = require('distube');
 const ytsr = require('ytsr');
-const youtubedl = require('youtube-dl-exec'); // Substituto para @distube/yt-dlp
+const ytdlp = require('@distube/yt-dlp');
 
 class MyCustomExtractor extends ExtractorPlugin {
     constructor(options) {
         super(options);
+        this.ytdlp = ytdlp;
+        this.ytsr = ytsr;
         console.log('MyCustomExtractor initialized');
     }
 
-    // Validação básica para URLs do YouTube
     async validate(url) {
         console.log(`Validating URL: ${url}`);
         return (
-            url.startsWith('https://') &&
-            (url.includes('youtube.com') || url.includes('youtu.be'))
+            url.startsWith('https://') ||
+            url.includes('youtube.com') ||
+            url.includes('youtu.be')
         );
     }
 
-    // Extração de informações usando youtube-dl-exec
     async extract(url) {
         console.log(`Extracting from URL: ${url}`);
         try {
-            const info = await youtubedl(url, {
-                dumpSingleJson: true,
-                noWarnings: true,
-                format: 'best',
-            });
-            console.log(`Info extraída: ${JSON.stringify(info)}`);
+            const info = await this.ytdlp.getInfo(url);  // Ou o novo extrator
+
+            // Se o extrator não retorna a URL do vídeo diretamente, force o retorno da URL correta do YouTube
+            const videoUrl = info.webpage_url || info.url || url;  // Garante que seja a URL do YouTube
+
             return {
                 name: info.title,
-                url: info.webpage_url,
+                url: videoUrl,  // Garantir que o DisTube receba uma URL válida do YouTube
                 thumbnail: info.thumbnail,
                 duration: info.duration,
             };
@@ -39,38 +39,65 @@ class MyCustomExtractor extends ExtractorPlugin {
         }
     }
 
-    // Busca de vídeos no YouTube usando ytsr
     async search(query) {
         console.log(`Searching for query: ${query}`);
         try {
             const results = await ytsr(query, { limit: 1 });
             const video = results.items.find((item) => item.type === 'video');
-            if (video) {
-                console.log(`Video encontrado: ${video.url}`);
-                return {
+            return video
+                ? {
                     name: video.title,
                     url: video.url,
-                    thumbnail: video.bestThumbnail.url,
-                    duration: null, // A duração pode ser obtida adicionalmente, se necessário
-                };
-            } else {
-                console.log('Nenhum vídeo encontrado');
-                return null;
-            }
+                    thumbnail: video.thumbnail,
+                    duration: null, // Duração pode ser obtida adicionalmente com yt-dlp se necessário
+                }
+                : null;
         } catch (error) {
             console.error('Error searching for video:', error);
             throw error;
         }
     }
 
-    // Resolução geral de URLs ou termos de pesquisa
+    async searchRelated(query, limit = 5) {
+        console.log(`Searching for related videos for query: ${query}`);
+        try {
+            // Primeiro, busca o vídeo relacionado com a consulta inicial
+            const initialResults = await ytsr(query, { limit: 1 });
+            const initialVideo = initialResults.items.find((item) => item.type === 'video');
+            if (!initialVideo) {
+                throw new Error('No initial video found for related search');
+            }
+
+            // Extrair palavras-chave mais relevantes do título ou descrição
+            const keywords = initialVideo.title.split(' ').slice(0, 3).join(' '); // Exemplo: usa as primeiras 3 palavras do título
+
+            // Consulta mais refinada usando palavras-chave extraídas
+            const refinedQuery = `${keywords} genre`;
+
+            // Buscar vídeos com base na consulta refinada
+            const relatedResults = await ytsr(refinedQuery, { limit });
+            return relatedResults.items
+                .filter((item) => item.type === 'video' && item.url !== initialVideo.url) // Evita duplicar o vídeo inicial
+                .map((video) => ({
+                    name: video.title,
+                    url: video.url,
+                    thumbnail: video.thumbnail,
+                    duration: null, // Duração pode ser obtida adicionalmente com yt-dlp se necessário
+                }));
+        } catch (error) {
+            console.error('Error searching for related videos:', error);
+            throw error;
+        }
+    }
+
     async resolve(query) {
         console.log(`Resolving query: ${query}`);
         // Primeiro tenta extrair como URL
         if (await this.validate(query)) {
             return await this.extract(query);
         }
-        // Caso não seja uma URL, realiza uma busca
+
+        // Caso não seja uma URL, tenta buscar por string
         return await this.search(query);
     }
 }

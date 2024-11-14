@@ -53,31 +53,18 @@ module.exports = {
                 return message.channel.send('Achei bosta!');
             }
 
-            // Certifique-se de que a URL extraída é válida
             url = resolved.url;
-            console.log(`URL resolvida com sucesso: ${url}`);
             message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
         }
 
-        // Verifique se a URL é válida antes de tentar tocá-la
-        if (!url) {
-            return message.channel.send('Não consegui encontrar uma URL válida para tocar.');
-        }
-
-        // Log para ver o link antes de tocar
         console.log(`Tentando tocar o link: ${url}`);
 
-        try {
-            // Tocar o link
-            await client.distube.play(message.member.voice.channel, url, {
-                member: message.member,
-                textChannel: message.channel,
-                message,
-            });
-        } catch (error) {
-            console.error(`Erro ao tentar tocar a música: ${error}`);
-            message.channel.send('Desculpa, não consegui tocar a música. Tente novamente mais tarde.');
-        }
+        // Tocar o link
+        client.distube.play(message.member.voice.channel, url, {
+            member: message.member,
+            textChannel: message.channel,
+            message,
+        });
 
         // Chamar o comando save para armazenar o link
         const saveCommand = client.commands.get('save');
