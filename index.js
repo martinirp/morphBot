@@ -86,7 +86,7 @@ client.once(Events.ClientReady, (c) => {
 });
 
 client.on('messageCreate', async (message) => {
-	const prefix = '!';
+	const prefix = "'";
 
 	if (message.author.bot || !message.guild) return;
 
