@@ -46,25 +46,25 @@ const lavalinkNodes = [
   },
 ];
 
-// Inicia o servidor Lavalink localmente (não-Docker)
+// Inicializa o servidor Lavalink a partir da pasta correta
 if (!isDockerDeploy) {
-  console.log('Starting Lavalink server...');
-
-  // Agora vamos remover o 'cwd' e usar o caminho correto para o arquivo Lavalink.jar
-  const lavalinkProcess = spawn('java', ['-jar', 'Lavalink.jar'], {
-    stdio: 'inherit', // Executa o processo diretamente na raiz
-  });
-
-  lavalinkProcess.on('error', (err) => {
-    console.error('Failed to start Lavalink:', err);
-    process.exit(1);
-  });
-
-  lavalinkProcess.on('close', (code) => {
-    console.log(`Lavalink process exited with code ${code}`);
-    process.exit(code);
-  });
-}
+	console.log('Starting Lavalink server...');
+	const lavalinkProcess = spawn('java', ['-jar', '/home/ubuntu/lavalink/Lavalink.jar'], {
+	  cwd: '/home/ubuntu/lavalink', // Diretório onde o Lavalink.jar está localizado
+	  stdio: 'inherit',
+	});
+  
+	lavalinkProcess.on('error', (err) => {
+	  console.error('Failed to start Lavalink:', err);
+	  process.exit(1);
+	});
+  
+	lavalinkProcess.on('close', (code) => {
+	  console.log(`Lavalink process exited with code ${code}`);
+	  process.exit(code);
+	});
+  }
+  
 
 // Inicialização do DisTube com suporte ao Lavalink
 const { LavalinkPlugin } = require('@distube/lavalink');
