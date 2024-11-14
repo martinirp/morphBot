@@ -72,10 +72,9 @@ client.distube = new DisTube(client, {
   emitAddListWhenCreatingQueue: false,
   savePreviousSongs: true,
   nsfw: true,
-  // Não é mais necessário o LavalinkPlugin, pois a versão 5.x do DisTube já possui suporte nativo
-  lavalink: {
-    nodes: lavalinkNodes,
-  },
+  // Remover a chave `lavalink` aqui
+  // A configuração do Lavalink é gerenciada automaticamente no DisTube v5.x
+  // Os nós do Lavalink são configurados diretamente ao conectar o servidor
 });
 
 // Quando o cliente estiver pronto, inicie o bot
