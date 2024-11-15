@@ -28,10 +28,10 @@ client.aliases = new Collection();
 client.slashCommands = new Collection();
 
 // Register prefix commands (ajuste no caminho aqui)
-require(__dirname + '/registers/commands-register')(client);  // Usando caminho absoluto
+require(__dirname + '/registers/commands-register.js')(client);  // Usando caminho absoluto
 
 // Register slash commands
-require(__dirname + '/registers/slash-commands-register')(client);  // Usando caminho absoluto
+require(__dirname + '/registers/slash-commands-register.js')(client);  // Usando caminho absoluto
 
 // Configure DisTube with Spotify support
 client.distube = new DisTube(client, {
@@ -76,7 +76,7 @@ client.once(Events.ClientReady, (c) => {
 });
 
 // Register the mention command
-const mentionCommand = require(__dirname + '/commands/mention'); // Ajuste o caminho, se necessário
+const mentionCommand = require(__dirname + '/commands/mention.js'); // Ajuste o caminho, se necessário
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
