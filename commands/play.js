@@ -60,11 +60,16 @@ module.exports = {
             }
 
             // Tocar o link
-            client.distube.play(message.member.voice.channel, url, {
-                member: message.member,
-                textChannel: message.channel,
-                message,
-            });
+            try {
+                await client.distube.play(message.member.voice.channel, url, {
+                    member: message.member,
+                    textChannel: message.channel,
+                    message,
+                });
+            } catch (error) {
+                console.error('Erro ao tentar tocar o link:', error);
+                message.channel.send('Houve um erro ao tentar tocar a música. Pode ser que o link esteja com problemas.');
+            }
 
             // Chamar o comando save para armazenar o link
             const saveCommand = client.commands.get('save');
