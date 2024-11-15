@@ -19,7 +19,7 @@ class MyCustomExtractor extends ExtractorPlugin {
         );
     }
 
-    async extract(url, message) {
+    async extract(url) {
         console.log(`Extracting from URL: ${url}`);
         try {
             const info = await this.ytdlp.getInfo(url);
@@ -31,24 +31,7 @@ class MyCustomExtractor extends ExtractorPlugin {
             };
         } catch (error) {
             console.error('Error extracting info:', error);
-
-            // Verifica se o erro é relacionado a confirmação de idade ou verificação de bot
-            if (error.name === 'YTDLP_ERROR' && 
-                (error.message.includes('Sign in to confirm you’re not a bot') || 
-                error.message.includes('This video is unavailable due to age restrictions'))) {
-                
-                const errorMessage = 'Este vídeo não pode ser reproduzido devido a restrições de idade ou verificação de bot do YouTube.';
-                
-                // Envia a mensagem de erro no canal
-                if (message && message.channel) {
-                    await message.channel.send(errorMessage);
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            // Lança outros erros
-            throw error;
+            throw error; // Apenas lança o erro sem tratamento específico
         }
     }
 
@@ -103,11 +86,11 @@ class MyCustomExtractor extends ExtractorPlugin {
         }
     }
 
-    async resolve(query, message) {
+    async resolve(query) {
         console.log(`Resolving query: ${query}`);
         // Primeiro tenta extrair como URL
         if (await this.validate(query)) {
-            return await this.extract(query, message);
+            return await this.extract(query);
         }
 
         // Caso não seja uma URL, tenta buscar por string
