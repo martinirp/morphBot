@@ -1,6 +1,8 @@
 // Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
+// const { SpotifyPlugin } = require('@distube/spotify');
+// const { SoundCloudPlugin } = require('@distube/soundcloud');
 const { DisTube } = require('distube');
 
 // Caminho do FFmpeg no Windows (ajuste para o seu ambiente)
@@ -34,14 +36,18 @@ require('./registers/commands-register')(client);
 // Register slash commands
 require('./registers/slash-commands-register')(client);
 
-// Configure DisTube
+// Configure DisTube com plugins
 client.distube = new DisTube(client, {
     emitNewSongOnly: true,
     emitAddSongWhenCreatingQueue: false,
     emitAddListWhenCreatingQueue: false,
     savePreviousSongs: true,
     nsfw: true,
-    plugins: [new YtDlpPlugin()],
+    plugins: [
+        new YtDlpPlugin(),
+        // new SpotifyPlugin(),
+        // new SoundCloudPlugin()
+    ],
     ffmpeg: { path: ffmpegPath }, // Usa o caminho correto do FFmpeg
 });
 
