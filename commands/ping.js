@@ -1,8 +1,9 @@
 module.exports = {
 	name: 'ping',
-	aliases: ['ye'],
+	description: 'retorna pong',
+	aliases: ['ping'],
 	inVoiceChannel: false,
 	execute: async (message) => {
-		message.channel.send(`Hi ${message.author.username} :)`);
+		message.channel.send(`pong`);
 	},
 };

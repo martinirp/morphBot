@@ -19,10 +19,6 @@ module.exports = {
 			return message.channel.send('Não é um link do Youtube');
 		}
 
-		message.channel.send(
-			`KOE ${message.author.username}, achei essa daqui: ${string}. Reproduzindo...`
-		);
-
 		client.distube.play(message.member.voice.channel, string, {
 			member: message.member,
 			textChannel: message.channel,
