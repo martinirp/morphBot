@@ -1,6 +1,7 @@
 // Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { SpotifyPlugin } = require('@distube/spotify');
 const { DisTube } = require('distube');
 
 // Get FFmpeg path from node_modules or default to system path
@@ -32,14 +33,23 @@ require('./registers/commands-register')(client);
 // Register slash commands
 require('./registers/slash-commands-register')(client);
 
-// Configure DisTube
+// Configure DisTube with Spotify support
 client.distube = new DisTube(client, {
     emitNewSongOnly: true,
     emitAddSongWhenCreatingQueue: false,
     emitAddListWhenCreatingQueue: false,
     savePreviousSongs: true,
     nsfw: true,
-    plugins: [new YtDlpPlugin()],
+    plugins: [
+        new YtDlpPlugin(),
+        new SpotifyPlugin({
+            api: {
+                clientId: process.env.SPOTIFY_CLIENT_ID, // Adicione ao seu .env
+                clientSecret: process.env.SPOTIFY_CLIENT_SECRET, // Adicione ao seu .env
+            },
+            emitEventsAfterFetching: true,
+        }),
+    ],
     ffmpeg: { path: isDockerDeploy ? undefined : ffmpegPath },
 });
 

@@ -1,24 +1,45 @@
 const MyCustomExtractor = require('./../myCustomExtractor');
 const { Client, Message } = require('discord.js');
+const SpotifyWebApi = require('spotify-web-api-node'); // Biblioteca para acessar o Spotify
 
 // Caminho para o arquivo links.txt
 const path = require('path');
 const filePath = path.join(__dirname, '..', 'data', 'links.txt');
 
+// Configuração do Spotify
+const spotifyApi = new SpotifyWebApi({
+    clientId: process.env.SPOTIFY_CLIENT_ID,
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+});
+
 // Função para salvar o link no arquivo
 function saveLink(link) {
     const fs = require('fs');
     try {
-        // Verifica se o arquivo existe
         if (!fs.existsSync(filePath)) {
-            // Se não existir, cria um arquivo vazio
             fs.writeFileSync(filePath, '', 'utf8');
         }
-        // Adiciona o link ao arquivo
         fs.appendFileSync(filePath, link + '\n', 'utf8');
         console.log(`Link adicionado ao arquivo TXT: ${link}`);
     } catch (error) {
         console.error(`Erro ao salvar link: ${error}`);
+    }
+}
+
+async function searchOnSpotify(query) {
+    try {
+        const token = await spotifyApi.clientCredentialsGrant();
+        spotifyApi.setAccessToken(token.body['access_token']);
+
+        const result = await spotifyApi.searchTracks(query, { limit: 1 });
+        if (result.body.tracks.items.length > 0) {
+            const track = result.body.tracks.items[0];
+            return track.external_urls.spotify; // Retorna o link do Spotify
+        }
+        return null;
+    } catch (error) {
+        console.error('Erro ao buscar no Spotify:', error);
+        return null;
     }
 }
 
@@ -44,7 +65,7 @@ module.exports = {
                     return message.channel.send('Tá querendo me enganar? Isso não é um link do YouTube!');
                 } else {
                     url = string;
-                    message.channel.send(`Coe ${message.author.displayName}, vou tocar esse link`);
+                    message.channel.send(`Coe ${message.author.username}, vou tocar esse link`);
                 }
             } else {
                 // Caso não seja um link, utiliza o MyCustomExtractor para resolver o nome
@@ -56,7 +77,7 @@ module.exports = {
                 }
 
                 url = resolved.url;
-                message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
+                message.channel.send(`Coe ${message.author.username}, achei essa aqui ${url}. Serve?`);
             }
 
             // Tocar o link
@@ -67,8 +88,17 @@ module.exports = {
                     message,
                 });
             } catch (error) {
-                console.error('Erro ao tentar tocar o link:', error);
-                message.channel.send('Houve um erro ao tentar tocar a música. Pode ser que o link esteja com problemas.');
+                console.error('Erro ao tentar tocar o link no YouTube:', error);
+                message.channel.send('Houve um problema ao tentar tocar a música no YouTube. Vou procurar no Spotify!');
+
+                // Busca no Spotify
+                const spotifyUrl = await searchOnSpotify(string);
+                if (spotifyUrl) {
+                    message.channel.send(`Encontrei no Spotify: ${spotifyUrl}`);
+                    return; // Retorna para evitar salvar o link do YouTube que falhou
+                } else {
+                    return message.channel.send('Não consegui encontrar essa música no Spotify também.');
+                }
             }
 
             // Chamar o comando save para armazenar o link
@@ -78,9 +108,8 @@ module.exports = {
             }
 
         } catch (error) {
-            // Retorna uma mensagem no canal de erro
             console.error('Erro ao processar o comando play:', error);
-            message.channel.send('Ocorreu um erro ao tentar tocar a música. O bot está funcionando normalmente, mas houve um problema com o link fornecido.');
+            message.channel.send('Ocorreu um erro ao tentar processar sua solicitação.');
         }
     },
 };
