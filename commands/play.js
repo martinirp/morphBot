@@ -1,145 +1,113 @@
-// Require the necessary discord.js classes
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
-const { YtDlpPlugin } = require('@distube/yt-dlp');
+const MyCustomExtractor = require('./../myCustomExtractor');
+const { Client, Message } = require('discord.js');
 const { SpotifyPlugin } = require('@distube/spotify');
-const { DisTube } = require('distube');
 
-// Get FFmpeg path from node_modules or default to system path
-const ffmpegPath = require('ffmpeg-static') || '/usr/bin/ffmpeg';
+// Caminho para o arquivo links.txt
+const path = require('path');
+const filePath = path.join(__dirname, '..', 'data', 'links.txt');
 
-// Load dotenv variables
-require('dotenv').config();
-
-const token = process.env.DISCORD_TOKEN;
-const isDockerDeploy = process.env.DOCKER_DEPLOY === 'true';
-
-// Create a new client instance
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-    ],
-});
-
-client.commands = new Collection();
-client.aliases = new Collection();
-client.slashCommands = new Collection();
-
-// Register prefix commands
-require('./registers/commands-register')(client);
-
-// Register slash commands
-require('./registers/slash-commands-register')(client);
-
-// Configure DisTube with Spotify support
-client.distube = new DisTube(client, {
-    emitNewSongOnly: true,
-    emitAddSongWhenCreatingQueue: false,
-    emitAddListWhenCreatingQueue: false,
-    savePreviousSongs: true,
-    nsfw: true,
-    plugins: [
-        new YtDlpPlugin(),
-        new SpotifyPlugin({
-            api: {
-                clientId: process.env.SPOTIFY_CLIENT_ID, // Adicione ao seu .env
-                clientSecret: process.env.SPOTIFY_CLIENT_SECRET, // Adicione ao seu .env
-            },
-            emitEventsAfterFetching: true,
-        }),
-    ],
-    ffmpeg: { path: isDockerDeploy ? undefined : ffmpegPath },
-});
-
-// Handle DisTube errors, including age restriction
-client.distube.on('error', async (channel, error) => {
+// Função para salvar o link no arquivo
+function saveLink(link) {
+    const fs = require('fs');
     try {
-        if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
-            await channel.send('Este vídeo requer confirmação de idade e não pode ser reproduzido.');
-            const queue = client.distube.getQueue(channel);
-            if (queue) await queue.skip();
-        } else {
-            console.error(`Erro de DisTube: ${error.message}`);
-            await channel.send('Ocorreu um erro ao tentar reproduzir o vídeo.');
+        // Verifica se o arquivo existe
+        if (!fs.existsSync(filePath)) {
+            // Se não existir, cria um arquivo vazio
+            fs.writeFileSync(filePath, '', 'utf8');
         }
-    } catch (e) {
-        console.error(`Erro ao lidar com erro do DisTube: ${e.message}`);
-        await channel.send('Ocorreu um erro inesperado ao lidar com a reprodução.');
+        // Adiciona o link ao arquivo
+        fs.appendFileSync(filePath, link + '\n', 'utf8');
+        console.log(`Link adicionado ao arquivo TXT: ${link}`);
+    } catch (error) {
+        console.error(`Erro ao salvar link: ${error}`);
     }
-});
+}
 
-// When the client is ready, run this code (only once)
-client.once(Events.ClientReady, (c) => {
-    console.log(`Ready! Logged in as ${c.user.tag}`);
-});
+module.exports = {
+    name: 'play',
+    description: 'Toca uma música ou um link indicado',
+    aliases: ['p'],
+    inVoiceChannel: true,
+    execute: async (message, client, args) => {
+        const string = args.join(' ');
+        if (!string) {
+            return message.channel.send('Não dá pra procurar nada desse jeito!');
+        }
 
-// Register the mention command
-const mentionCommand = require('./commands/mention'); // Ajuste o caminho, se necessário
+        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|playlist\?|channel\/|user\/|c\/)?[A-Za-z0-9_-]+/;
+        let url;
 
-client.on('messageCreate', async (message) => {
-    const prefix = "'";
+        // Verifica se a string é um link do YouTube
+        if (string.startsWith('http')) {
+            if (!youtubeRegex.test(string)) {
+                return message.channel.send('Tá querendo me enganar? Isso não é um link do YouTube!');
+            } else {
+                url = string;
+                message.channel.send(`Coe ${message.author.displayName}, vou tocar esse link`);
+            }
+        } else {
+            // Caso não seja um link, utiliza o MyCustomExtractor para resolver o nome
+            const teste = new MyCustomExtractor();
+            const resolved = await teste.resolve(string);
 
-    if (message.author.bot || !message.guild) return;
+            if (!resolved || !resolved.url) {
+                return message.channel.send('Achei bosta!');
+            }
 
-    if (message.mentions.has(client.user)) {
-        if (mentionCommand) {
-            try {
-                await mentionCommand.execute(message, client);
-            } catch (e) {
-                console.error(e);
-                message.channel.send(`Erro ao executar o comando: \`${e.message}\``);
+            url = resolved.url;
+            message.channel.send(`Coe ${message.author.displayName}, achei essa aqui ${url}. Serve?`);
+        }
+
+        try {
+            // Tocar o link
+            await client.distube.play(message.member.voice.channel, url, {
+                member: message.member,
+                textChannel: message.channel,
+                message,
+            });
+
+            // Chamar o comando save para armazenar o link
+            const saveCommand = client.commands.get('save');
+            if (saveCommand) {
+                saveCommand.execute(message, client, [url]);
+            }
+
+        } catch (error) {
+            // Verifica erros do YouTube e tenta buscar no Spotify
+            if (error.message.includes('YTDLP_ERROR') || error.message.includes('age restricted')) {
+                console.error('Erro no YouTube:', error.message);
+                return message.channel.send('Este vídeo do YouTube não pode ser reproduzido (erro de idade ou outro). Tentando buscar no Spotify...');
+
+                // Busca no Spotify usando o DisTube
+                try {
+                    const spotifyResult = await client.distube.search(string, { limit: 1, type: 'track' });
+
+                    if (spotifyResult && spotifyResult.length > 0) {
+                        const track = spotifyResult[0];
+                        message.channel.send(`Achei no Spotify: ${track.name} por ${track.artist}. Vou tocar agora!`);
+                        await client.distube.play(message.member.voice.channel, track.url, {
+                            member: message.member,
+                            textChannel: message.channel,
+                            message,
+                        });
+
+                        // Chama o comando save para salvar o link do Spotify
+                        const saveCommand = client.commands.get('save');
+                        if (saveCommand) {
+                            saveCommand.execute(message, client, [track.url]);
+                        }
+                    } else {
+                        message.channel.send('Não encontrei nada no Spotify. Tente novamente com outra música!');
+                    }
+
+                } catch (spotifyError) {
+                    console.error('Erro ao buscar no Spotify:', spotifyError.message);
+                    message.channel.send('Ocorreu um erro ao tentar buscar no Spotify. Tente novamente mais tarde!');
+                }
+            } else {
+                console.error('Erro desconhecido:', error.message);
+                message.channel.send('Ocorreu um erro ao tentar reproduzir o vídeo. Tente novamente mais tarde.');
             }
         }
-        return;
-    }
-
-    if (!message.content.startsWith(prefix)) return;
-
-    const args = message.content.slice(prefix.length).trim().split(/ +/g);
-    const commandTyped = args.shift().toLowerCase();
-
-    const cmd =
-        client.commands.get(commandTyped) ||
-        client.commands.get(client.aliases.get(commandTyped));
-
-    if (!cmd) return;
-
-    if (cmd.inVoiceChannel && !message.member.voice.channel) {
-        return message.channel.send('Você deve estar em um canal de voz!');
-    }
-
-    try {
-        await cmd.execute(message, client, args);
-    } catch (e) {
-        console.error(e);
-        message.channel.send(`Erro: \`${e.message}\``);
-    }
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-
-    const command = interaction.client.slashCommands.get(interaction.commandName);
-
-    if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
-        return;
-    }
-
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        const replyContent = 'There was an error while executing this command!';
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: replyContent, ephemeral: true });
-        } else {
-            await interaction.reply({ content: replyContent, ephemeral: true });
-        }
-    }
-});
-
-// Log in to Discord with your client's token
-client.login(token);
+    },
+};
