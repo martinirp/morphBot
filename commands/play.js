@@ -73,40 +73,35 @@ module.exports = {
             }
 
         } catch (error) {
-            // Verifica erros do YouTube e tenta buscar no Spotify
-            if (error.message.includes('YTDLP_ERROR') || error.message.includes('age restricted')) {
-                console.error('Erro no YouTube:', error.message);
-                return message.channel.send('Este vídeo do YouTube não pode ser reproduzido (erro de idade ou outro). Tentando buscar no Spotify...');
+            // Responde com erro e tenta buscar no Spotify
+            console.error('Erro ao tentar reproduzir o vídeo:', error.message);
+            message.channel.send('Ocorreu um erro ao tentar reproduzir o vídeo. Tente novamente mais tarde. Vou buscar no Spotify...');
 
-                // Busca no Spotify usando o DisTube
-                try {
-                    const spotifyResult = await client.distube.search(string, { limit: 1, type: 'track' });
+            // Busca no Spotify usando o DisTube
+            try {
+                const spotifyResult = await client.distube.search(string, { limit: 1, type: 'track' });
 
-                    if (spotifyResult && spotifyResult.length > 0) {
-                        const track = spotifyResult[0];
-                        message.channel.send(`Achei no Spotify: ${track.name} por ${track.artist}. Vou tocar agora!`);
-                        await client.distube.play(message.member.voice.channel, track.url, {
-                            member: message.member,
-                            textChannel: message.channel,
-                            message,
-                        });
+                if (spotifyResult && spotifyResult.length > 0) {
+                    const track = spotifyResult[0];
+                    message.channel.send(`Achei no Spotify: ${track.name} por ${track.artist}. Vou tocar agora!`);
+                    await client.distube.play(message.member.voice.channel, track.url, {
+                        member: message.member,
+                        textChannel: message.channel,
+                        message,
+                    });
 
-                        // Chama o comando save para salvar o link do Spotify
-                        const saveCommand = client.commands.get('save');
-                        if (saveCommand) {
-                            saveCommand.execute(message, client, [track.url]);
-                        }
-                    } else {
-                        message.channel.send('Não encontrei nada no Spotify. Tente novamente com outra música!');
+                    // Chama o comando save para salvar o link do Spotify
+                    const saveCommand = client.commands.get('save');
+                    if (saveCommand) {
+                        saveCommand.execute(message, client, [track.url]);
                     }
-
-                } catch (spotifyError) {
-                    console.error('Erro ao buscar no Spotify:', spotifyError.message);
-                    message.channel.send('Ocorreu um erro ao tentar buscar no Spotify. Tente novamente mais tarde!');
+                } else {
+                    message.channel.send('Não encontrei nada no Spotify. Tente novamente com outra música!');
                 }
-            } else {
-                console.error('Erro desconhecido:', error.message);
-                message.channel.send('Ocorreu um erro ao tentar reproduzir o vídeo. Tente novamente mais tarde.');
+
+            } catch (spotifyError) {
+                console.error('Erro ao buscar no Spotify:', spotifyError.message);
+                message.channel.send('Ocorreu um erro ao tentar buscar no Spotify. Tente novamente mais tarde!');
             }
         }
     },
