@@ -1,27 +1,3 @@
-const { Client, Message } = require('discord.js');
-const { SpotifyPlugin } = require('@distube/spotify');
-
-// Caminho para o arquivo links.txt
-const path = require('path');
-const filePath = path.join(__dirname, '..', 'data', 'links.txt');
-
-// Função para salvar o link no arquivo
-function saveLink(link) {
-    const fs = require('fs');
-    try {
-        // Verifica se o arquivo existe
-        if (!fs.existsSync(filePath)) {
-            // Se não existir, cria um arquivo vazio
-            fs.writeFileSync(filePath, '', 'utf8');
-        }
-        // Adiciona o link ao arquivo
-        fs.appendFileSync(filePath, link + '\n', 'utf8');
-        console.log(`Link adicionado ao arquivo TXT: ${link}`);
-    } catch (error) {
-        console.error(`Erro ao salvar link: ${error}`);
-    }
-}
-
 module.exports = {
     name: 'play',
     description: 'Toca uma música ou um link indicado',
@@ -33,8 +9,8 @@ module.exports = {
             return message.channel.send('Não dá pra procurar nada desse jeito!');
         }
 
-        // Utiliza apenas a pesquisa do Spotify
         try {
+            // Usando distube.search para buscar no Spotify
             const spotifyResult = await client.distube.search(string, { limit: 1, type: 'track' });
 
             if (spotifyResult && spotifyResult.length > 0) {
