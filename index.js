@@ -1,11 +1,12 @@
 // Require the necessary discord.js classes
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
-const { SpotifyPlugin } = require('@distube/spotify');
 const { DisTube } = require('distube');
 
-// Get FFmpeg path from node_modules or default to system path
-const ffmpegPath = require('ffmpeg-static') || '/usr/bin/ffmpeg';
+// Caminho do FFmpeg no Windows (ajuste para o seu ambiente)
+const ffmpegPath = process.platform === 'win32' 
+    ? 'C:\\ffmpeg\\bin\\ffmpeg.exe' // Caminho absoluto no Windows
+    : require('ffmpeg-static').path || '/usr/bin/ffmpeg'; // Para sistemas não Windows (Linux, Docker, etc.)
 
 // Load dotenv variables
 require('dotenv').config();
@@ -27,43 +28,28 @@ client.commands = new Collection();
 client.aliases = new Collection();
 client.slashCommands = new Collection();
 
-// Register prefix commands (ajuste no caminho aqui)
-require(__dirname + '/registers/commands-register.js')(client);  // Usando caminho absoluto
+// Register prefix commands
+require('./registers/commands-register')(client);
 
 // Register slash commands
-require(__dirname + '/registers/slash-commands-register.js')(client);  // Usando caminho absoluto
+require('./registers/slash-commands-register')(client);
 
-// Configure DisTube with Spotify support
+// Configure DisTube
 client.distube = new DisTube(client, {
     emitNewSongOnly: true,
     emitAddSongWhenCreatingQueue: false,
     emitAddListWhenCreatingQueue: false,
     savePreviousSongs: true,
     nsfw: true,
-    plugins: [
-        new YtDlpPlugin(),
-        new SpotifyPlugin({
-            api: {
-                clientId: process.env.SPOTIFY_CLIENT_ID, // Adicione ao seu .env
-                clientSecret: process.env.SPOTIFY_CLIENT_SECRET, // Adicione ao seu .env
-            },
-            emitEventsAfterFetching: true,
-        }),
-    ],
-    ffmpeg: { path: isDockerDeploy ? undefined : ffmpegPath },
+    plugins: [new YtDlpPlugin()],
+    ffmpeg: { path: ffmpegPath }, // Usa o caminho correto do FFmpeg
 });
 
-// Handle DisTube errors, including age restriction
+// Handle DisTube errors (without YouTube-specific error handling)
 client.distube.on('error', async (channel, error) => {
     try {
-        if (error.name === 'YTDLP_ERROR' && error.message.includes('Sign in to confirm your age')) {
-            await channel.send('Este vídeo requer confirmação de idade e não pode ser reproduzido.');
-            const queue = client.distube.getQueue(channel);
-            if (queue) await queue.skip();
-        } else {
-            console.error(`Erro de DisTube: ${error.message}`);
-            await channel.send('Ocorreu um erro ao tentar reproduzir o vídeo.');
-        }
+        console.error(`Erro de DisTube: ${error.message}`);
+        await channel.send('Ocorreu um erro ao tentar reproduzir o vídeo.');
     } catch (e) {
         console.error(`Erro ao lidar com erro do DisTube: ${e.message}`);
         await channel.send('Ocorreu um erro inesperado ao lidar com a reprodução.');
@@ -76,7 +62,7 @@ client.once(Events.ClientReady, (c) => {
 });
 
 // Register the mention command
-const mentionCommand = require(__dirname + '/commands/mention.js'); // Ajuste o caminho, se necessário
+const mentionCommand = require('./commands/mention'); // Ajuste o caminho, se necessário
 
 client.on('messageCreate', async (message) => {
     const prefix = "'";
